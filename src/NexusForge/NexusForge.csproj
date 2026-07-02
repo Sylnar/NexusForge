@@ -16,7 +16,7 @@
     <Product>NexusForge</Product>
     <Company>NexusForge</Company>
     <Authors>NexusForge</Authors>
-    <Copyright>Copyright Â© 2026 NexusForge. All rights reserved.</Copyright>
+    <Copyright>Copyright (C) 2026 NexusForge. All rights reserved.</Copyright>
     <Description>FPGA DMA board management tool.</Description>
     <FileVersion>1.1.25.0</FileVersion>
     <AssemblyVersion>1.1.25.0</AssemblyVersion>

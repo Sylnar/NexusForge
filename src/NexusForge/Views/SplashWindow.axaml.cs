@@ -5,7 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Threading;
-using NexusForge.Models;
+using NexusForge.Helpers;
 
 namespace NexusForge.Views;
 
@@ -36,11 +36,9 @@ public partial class SplashWindow : Window
         _logoBorder = this.FindControl<Border>("LogoBorder")!;
         _trackWidth = 460 - 96; // window width minus margins (48*2)
 
-        try
-        {
-            var settings = new AppSettings();
-            _versionText.Text = $"v{settings.Version}";
-        }
+        // v1.1.25: sourced from shared VersionInfo helper so all user-visible
+        // version strings agree without cross-file editing.
+        try { _versionText.Text = VersionInfo.WithV; }
         catch { }
 
         Opacity = 0;

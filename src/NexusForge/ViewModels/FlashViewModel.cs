@@ -20,7 +20,6 @@ public class FlashViewModel : BaseViewModel
     private string _flashStage = string.Empty;
     private string _flashMessage = string.Empty;
     private bool _isFlashing;
-    private bool _verifyAfterFlash = true;
     private bool _isFlashComplete;
     private bool _hasFlashError;
     private string _flashErrorMessage = string.Empty;
@@ -86,12 +85,6 @@ public class FlashViewModel : BaseViewModel
     {
         get => _isFlashing;
         set => SetProperty(ref _isFlashing, value);
-    }
-
-    public bool VerifyAfterFlash
-    {
-        get => _verifyAfterFlash;
-        set => SetProperty(ref _verifyAfterFlash, value);
     }
 
     public bool IsFlashComplete
@@ -207,7 +200,7 @@ public class FlashViewModel : BaseViewModel
 
         try
         {
-            var result = await _flashService.FlashAsync(FirmwarePath, VerifyAfterFlash, progress, _cts.Token);
+            var result = await _flashService.FlashAsync(FirmwarePath, progress, _cts.Token);
 
             if (result.Success)
             {

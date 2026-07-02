@@ -559,7 +559,7 @@ if ($dev) {{
         };
 
         var allOutput = new System.Text.StringBuilder();
-        bool wrote = false, verified = false, verifyFailed = false;
+        bool wrote = false, verifyFailed = false;
         int sectorsTotal = totalSectorsEstimate;
         int sectorsErased = 0;
         bool erasePhase = false;
@@ -665,21 +665,19 @@ if ($dev) {{
                 return;
             }
 
-            if ((t.Contains("wrote", StringComparison.OrdinalIgnoreCase) && t.Contains("bytes", StringComparison.OrdinalIgnoreCase)) ||
-                (t.Contains("Close", StringComparison.OrdinalIgnoreCase) && pagesWritten > 0 && !wrote))
+            // v1.1.25: dropped the "Close" substring hack that previously
+            // marked a run as "wrote=true" any time OpenOCD emitted a "Close"
+            // log line after >=1 page report. That masked partial-write failures
+            // by faking success when the write had actually died mid-page.
+            // Now we ONLY trust the explicit "wrote N bytes" pattern from
+            // OpenOCD, cross-checked with the success gate below (which also
+            // requires ExitCode==0 or full page count reached).
+            if (t.Contains("wrote", StringComparison.OrdinalIgnoreCase) && t.Contains("bytes", StringComparison.OrdinalIgnoreCase))
             {
                 wrote = true;
                 long kbWritten = (pagesWritten * 256) / 1024;
                 _logService.Info($"Write complete: {kbWritten} KB ({pagesWritten} pages).");
                 progress?.Report(new FlashProgress { Stage = "Written", Percentage = 90, Message = "Write complete!" });
-            }
-
-            if (t.Contains("contents match", StringComparison.OrdinalIgnoreCase) ||
-                t.Contains("verified", StringComparison.OrdinalIgnoreCase))
-            {
-                verified = true;
-                _logService.Info("Firmware verified.");
-                progress?.Report(new FlashProgress { Stage = "Verified", Percentage = 95, Message = "Verification passed!" });
             }
 
             // Real read-back mismatch from "flash verify_bank" (host-side memcmp).
@@ -694,9 +692,7 @@ if ($dev) {{
 
             if (t.Contains("Error:", StringComparison.OrdinalIgnoreCase))
             {
-                var sanitized = Regex.Replace(t, @"[A-Za-z]:[/\\][^\s""']+", "[…]");
-                sanitized = Regex.Replace(sanitized, @"/tmp/[^\s""']+", "[…]");
-                _logService.Error(sanitized);
+                _logService.Error(SanitizePath(t));
             }
         }
 
@@ -718,13 +714,26 @@ if ($dev) {{
             }
         });
 
-        bool exited = process.WaitForExit(_settings.FlashTimeoutSeconds * 1000);
+        // v1.1.25: scale the timeout with firmware size so a legitimate long
+        // write on a marginal cable is not misreported as a hang. Baseline of
+        // FlashTimeoutSeconds is the floor; effective is max(baseline, size/25000).
+        // For a 16 MB firmware, that is ~671s. For a 4 MB firmware, ~168s so the
+        // baseline (default 300s) still applies. Change reported to the user
+        // in the timeout error message so they can distinguish "cable was slow"
+        // from "cable was broken".
+        int baselineMs = _settings.FlashTimeoutSeconds * 1000;
+        int sizeScaledMs = (int)Math.Min(int.MaxValue, (long)(firmwareSize / 25000L) * 1000L);
+        int effectiveTimeoutMs = Math.Max(baselineMs, sizeScaledMs);
+
+        bool exited = process.WaitForExit(effectiveTimeoutMs);
         if (!exited)
         {
             try { process.Kill(true); } catch { }
-            _logService.Error("SPI flash programming timed out.");
-            progress?.Report(new FlashProgress { Stage = "Failed", Percentage = 0, Message = "Timed out" });
-            return new FlashResult { Success = false, ErrorMessage = "Timed out", Duration = sw.Elapsed };
+            int effSec = effectiveTimeoutMs / 1000;
+            long sizeKb = firmwareSize / 1024;
+            _logService.Error($"SPI flash programming timed out after {effSec}s (firmware {sizeKb} KB).");
+            progress?.Report(new FlashProgress { Stage = "Failed", Percentage = 0, Message = $"Timed out after {effSec}s" });
+            return new FlashResult { Success = false, ErrorMessage = $"Timed out after {effSec}s ({sizeKb} KB firmware)", Duration = sw.Elapsed };
         }
 
         Task.WaitAll(errTask, outTask);
@@ -732,30 +741,25 @@ if ($dev) {{
 
         bool success = process.ExitCode == 0;
 
-        // A real verify mismatch is a hard failure even though the write itself
-        // completed. Route to ReportFlashError (which gives the "Verification
-        // failed after write" guidance) instead of reporting a false success.
-        if ((success || wrote) && !verifyFailed)
+        // v1.1.25: tightened success gate. Previously any of (ExitCode==0, wrote
+        // seen, "Close" substring) counted; that let partial-write failures pass
+        // as success. Now: OpenOCD MUST exit with code 0, AND we must either
+        // have seen an explicit "wrote N bytes" or observed all expected pages,
+        // AND no read-back mismatch fired. Anything else routes to
+        // ReportFlashError with actionable guidance.
+        bool pagesReached = totalPages > 0 && pagesWritten >= totalPages;
+        if (success && (wrote || pagesReached) && !verifyFailed)
         {
             long kbTotal = (pagesWritten * 256) / 1024;
             _logService.Info($"SPI flash complete in {sw.Elapsed.TotalSeconds:F1}s");
             _logService.Info($"  {kbTotal} KB written to SPI flash.");
-            if (verified)
-            {
-                _logService.Info("  Firmware verified OK.");
-                progress?.Report(new FlashProgress { Stage = "Verified", Percentage = 97, Message = "Verified OK!" });
-                System.Threading.Thread.Sleep(500);
-            }
-            else
-            {
-                // Honest: this JTAG bridge does not return a read-back verify
-                // result, so we do not claim verification. The write itself is
-                // the reliable operation; power-cycle and confirm enumeration.
-                _logService.Info("  Write reported complete by the flash programmer.");
-            }
+            // Honest: this JTAG bridge does not return a read-back verify
+            // result, so we do not claim verification. The write itself is
+            // the reliable operation; power-cycle and confirm enumeration.
+            _logService.Info("  Write reported complete by the flash programmer.");
             _logService.Info("Power cycle the target PC to load the new firmware.");
             progress?.Report(new FlashProgress { Stage = "Complete", Percentage = 100, Message = "SPI flash programmed!" });
-            return new FlashResult { Success = true, Duration = sw.Elapsed, Verified = verified };
+            return new FlashResult { Success = true, Duration = sw.Elapsed };
         }
 
         return ReportFlashError(allOutput.ToString(), sw.Elapsed, progress);
@@ -899,8 +903,7 @@ if ($dev) {{
                 t.Contains("failed", StringComparison.OrdinalIgnoreCase) ||
                 t.Contains("can't", StringComparison.OrdinalIgnoreCase))
             {
-                var sanitized = Regex.Replace(t, @"[A-Za-z]:[/\\][^\s""']+", "[path]");
-                sanitized = Regex.Replace(sanitized, @"/tmp/[^\s""']+", "[path]");
+                var sanitized = SanitizePath(t);
                 _logService.Error($"  {sanitized}");
             }
         }
@@ -925,6 +928,24 @@ if ($dev) {{
     }
 
     public void Dispose() => Cleanup();
+
+    // v1.1.25: single sanitizer for user-visible paths in log output. Preserves
+    // the basename (usually the .bin filename) so support can still see which
+    // firmware was involved, while stripping the leading directory chain that
+    // could leak profile paths / usernames. Previously two inline regexes at
+    // different call sites did this differently (one used "[…]", the other
+    // "[path]", and both dropped the basename entirely - unhelpful for triage).
+    private static readonly Regex _pathWinRegex = new(@"[A-Za-z]:[/\\][^\s""']+[/\\]([^\s""'/\\]+)", RegexOptions.Compiled);
+    private static readonly Regex _pathUnixRegex = new(@"/tmp/[^\s""']+/([^\s""'/]+)", RegexOptions.Compiled);
+    private static readonly Regex _pathUnixTailRegex = new(@"/tmp/[^\s""'/]+(?=\s|$|["")'])", RegexOptions.Compiled);
+    private static string SanitizePath(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        s = _pathWinRegex.Replace(s, "[path]/$1");
+        s = _pathUnixRegex.Replace(s, "[path]/$1");
+        s = _pathUnixTailRegex.Replace(s, "[path]");
+        return s;
+    }
 
     private static uint ReverseBits32(uint value)
     {

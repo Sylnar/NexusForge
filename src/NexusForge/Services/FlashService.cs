@@ -20,9 +20,12 @@ public class FlashService
         _logger = logger;
     }
 
+    // v1.1.25: dropped the ghost `bool verify` parameter. It was passed through
+    // by the ViewModel from a UI checkbox and then never read - jtagspi_program
+    // always runs its internal verify_bank step as part of write on this bridge.
+    // See the block comment in NativeJtagService.FlashSpiWithProgress.
     public Task<FlashResult> FlashAsync(
         string binFilePath,
-        bool verify,
         IProgress<FlashProgress>? progress,
         CancellationToken cancellationToken = default)
     {

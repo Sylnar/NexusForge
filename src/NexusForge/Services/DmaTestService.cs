@@ -1287,15 +1287,21 @@ public class DmaTestService
     // leechcore.dll + the full FTDI chain + the freshly generated mmap.txt so
     // the end user does not have to manually patch anything. SAFE + reversible:
     //   - .orig backup taken before replacing leechcore.dll or mmap.txt.
-    //   - never replaces a leechcore that is already the custom build (138752).
+    //   - never replaces a leechcore that already matches the currently-bundled build.
     //   - never replaces a leechcore from a different ABI minor (e.g. 2.19).
     //   - never clobbers an existing FTDI dll - only fills gaps.
     //   - never throws out of the per-folder loop; overall try/catch -> Error.
 
-    // The custom patched leechcore is uniquely identified by its byte length
-    // AND/OR its FileVersion (2.22.9.95). Either match is treated as "ours".
-    private const long CustomLeechcoreSize = 138752;
-    private const string CustomLeechcoreVersion = "2.22.9.95";
+    // The bundled leechcore is identified by its byte length AND/OR its FileVersion.
+    // v1.1.25: both are AUTO-DERIVED from the freshly-extracted embedded copy at
+    // DeployToTools time (see the assignments right after ResourceCrypto extract),
+    // so bumping the bundled leechcore never requires editing these constants
+    // again. Prevents the class of bug where a stale value here silently defeats
+    // the whole point of a leechcore bump (v1.1.24 -> v1.1.25 hit exactly this).
+    // ABI minor stays as a compile-time compat statement - a new minor is a
+    // manual decision, not automatic.
+    private static long CustomLeechcoreSize;
+    private static string CustomLeechcoreVersion = "";
     private const string CustomLeechcoreAbiMinor = "2.22";
 
     // Depth cap is measured from a DRIVE ROOT (e.g. C:\), not a profile sub-folder,
@@ -1369,6 +1375,15 @@ public class DmaTestService
             }
 
             var customLeechcoreBytes = File.ReadAllBytes(stagedLeechcore);
+
+            // v1.1.25: auto-derive the size + version identity from the freshly-
+            // extracted embedded copy. This guarantees the "already current"
+            // fast-path in DeployToFolder compares against what we are actually
+            // shipping right now, not against a hardcoded value that goes stale
+            // whenever the bundled leechcore is bumped.
+            CustomLeechcoreSize = customLeechcoreBytes.LongLength;
+            CustomLeechcoreVersion = TryGetFileVersion(stagedLeechcore) ?? "";
+            _log.Info($"Deploy: bundled leechcore identity resolved (size={CustomLeechcoreSize} bytes, version={(string.IsNullOrEmpty(CustomLeechcoreVersion) ? "unknown" : CustomLeechcoreVersion)}).");
 
             // 2. Determine scan roots: every ready FIXED drive root. This covers tools
             //    wherever they live (C:\pcileech, D:\dma\..., a non-default user profile),
@@ -1492,7 +1507,9 @@ public class DmaTestService
         else
         {
             var existingVer = TryGetFileVersion(leechcorePath);
-            if (existingVer != null && string.Equals(existingVer, CustomLeechcoreVersion, StringComparison.OrdinalIgnoreCase))
+            if (existingVer != null &&
+                !string.IsNullOrEmpty(CustomLeechcoreVersion) &&
+                string.Equals(existingVer, CustomLeechcoreVersion, StringComparison.OrdinalIgnoreCase))
             {
                 // Same version string but different size - treat as already ours.
                 result.Flagged.Add($"{folder} - leechcore already current (v{CustomLeechcoreVersion})");

@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:h="using:NexusForge.Helpers"
         x:Class="NexusForge.Views.SplashWindow"
         Title="NexusForge"
         Width="460" Height="340"
@@ -102,8 +103,10 @@
                     Orientation="Horizontal"
                     Spacing="6">
           <Ellipse Width="5" Height="5" Fill="#3FB950" VerticalAlignment="Center" />
+          <!-- v1.1.25: Text bound via x:Static so design-time preview and
+               runtime both source from VersionInfo (single source of truth). -->
           <TextBlock Name="VersionText"
-                     Text="v1.1.25"
+                     Text="{x:Static h:VersionInfo.WithV}"
                      Foreground="#30363D"
                      FontSize="10" />
         </StackPanel>
