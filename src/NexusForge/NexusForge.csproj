@@ -12,15 +12,15 @@
     <AssemblyName>NexusForge</AssemblyName>
     <ApplicationIcon>nexusforge.ico</ApplicationIcon>
     <RootNamespace>NexusForge</RootNamespace>
-    <Version>1.1.25</Version>
+    <Version>1.1.26</Version>
     <Product>NexusForge</Product>
     <Company>NexusForge</Company>
     <Authors>NexusForge</Authors>
     <Copyright>Copyright (C) 2026 NexusForge. All rights reserved.</Copyright>
     <Description>FPGA DMA board management tool.</Description>
-    <FileVersion>1.1.25.0</FileVersion>
-    <AssemblyVersion>1.1.25.0</AssemblyVersion>
-    <InformationalVersion>1.1.25</InformationalVersion>
+    <FileVersion>1.1.26.0</FileVersion>
+    <AssemblyVersion>1.1.26.0</AssemblyVersion>
+    <InformationalVersion>1.1.26</InformationalVersion>
     <NeutralLanguage>en</NeutralLanguage>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
