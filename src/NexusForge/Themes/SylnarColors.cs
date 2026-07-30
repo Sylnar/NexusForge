@@ -1,9 +1,9 @@
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 
-namespace NexusForge.Themes;
+namespace Sylnar.Themes;
 
-public class NexusColors
+public class SylnarColors
 {
     public static readonly string BackgroundPrimary = "#1A1A2E";
     public static readonly string BackgroundSecondary = "#16213E";

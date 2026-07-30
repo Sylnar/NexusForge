@@ -3,9 +3,9 @@ using System.Globalization;
 using System.Text;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
-using NexusForge.Services;
+using Sylnar.Services;
 
-namespace NexusForge.ViewModels;
+namespace Sylnar.ViewModels;
 
 public class BarProbeViewModel : BaseViewModel
 {

@@ -1,7 +1,7 @@
 using Avalonia;
-using NexusForge.Helpers;
+using Sylnar.Helpers;
 
-namespace NexusForge;
+namespace Sylnar;
 
 class Program
 {
@@ -9,7 +9,7 @@ class Program
     public static void Main(string[] args)
     {
         // Headless CLI path for SSH / automation verification:
-        //   NexusForge.exe --dmatest full | latency | throughput | stress
+        //   Sylnar.exe --dmatest full | latency | throughput | stress
         // Must be handled BEFORE any Avalonia bootstrap so the GUI never comes up.
         // HeadlessDmaTest.Run attaches a console, runs the test, prints + writes the
         // result, and Environment.Exit()s — it never returns here.
@@ -31,7 +31,7 @@ class Program
         // Win11 25H2 fix: when the previous run did not exit cleanly (marker file
         // is still on disk from a prior crash, or the user killed the process),
         // wipe the .NET single-file native-extraction cache. Defender/SmartScreen
-        // on 25H2 can quarantine files in %TEMP%\.net\NexusForge\<hash>\ between
+        // on 25H2 can quarantine files in %TEMP%\.net\Sylnar\<hash>\ between
         // launches, leaving the cache present-but-broken so the next launch dies
         // silently in the apphost before any managed code runs. PC reboot clears
         // this because Windows resets the AV scan state for fresh sessions.
@@ -70,7 +70,7 @@ class Program
         // already extracted by the time Main runs) but we CAN delete it so the next
         // launch gets a fresh extract.
         var temp = Path.GetTempPath();
-        var dotnetCache = Path.Combine(temp, ".net", "NexusForge");
+        var dotnetCache = Path.Combine(temp, ".net", "Sylnar");
         if (!Directory.Exists(dotnetCache)) return;
 
         CrashLogger.WriteLine($"Clearing stale single-file extract cache at {dotnetCache}");

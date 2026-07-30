@@ -2,7 +2,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Security.Cryptography;
 
-namespace NexusForge.Helpers;
+namespace Sylnar.Helpers;
 
 internal static class ResourceCrypto
 {

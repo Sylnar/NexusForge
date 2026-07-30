@@ -1,4 +1,4 @@
-namespace NexusForge.Helpers;
+namespace Sylnar.Helpers;
 
 public static class DnaFormatter
 {

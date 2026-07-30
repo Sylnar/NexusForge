@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
-  <assemblyIdentity version="1.0.0.0" name="NexusForge"
+  <assemblyIdentity version="1.0.0.0" name="Sylnar"
                     processorArchitecture="amd64" type="win32" />
 
-  <description>NexusForge — FPGA DMA Board Management Tool</description>
+  <description>Sylnar — FPGA DMA Board Management Tool</description>
 
   <!-- Request admin elevation on launch (UAC prompt) -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">

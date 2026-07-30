@@ -1,6 +1,6 @@
 using System.Management;
 
-namespace NexusForge.Services;
+namespace Sylnar.Services;
 
 /// <summary>
 /// Enumerates PCIe devices on the host and their BAR memory ranges via WMI.

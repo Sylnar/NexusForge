@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using NexusForge.Models;
+using Sylnar.Models;
 
-namespace NexusForge.Services;
+namespace Sylnar.Services;
 
 public class BoardDetectionService
 {

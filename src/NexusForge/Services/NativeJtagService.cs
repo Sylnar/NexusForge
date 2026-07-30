@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using NexusForge.Helpers;
-using NexusForge.Models;
+using Sylnar.Helpers;
+using Sylnar.Models;
 
-namespace NexusForge.Services;
+namespace Sylnar.Services;
 
 public class NativeJtagService : IDisposable
 {
@@ -815,7 +815,7 @@ if ($dev) {{
             hints = new[]
             {
                 "The SPI flash chip has block-protection bits set in its status register.",
-                "Those bits cannot be cleared through JTAG. Use an external CH341A programmer with a SOIC-8 clip to clear the protection bits, then retry from NexusForge."
+                "Those bits cannot be cleared through JTAG. Use an external CH341A programmer with a SOIC-8 clip to clear the protection bits, then retry from Sylnar."
             };
         }
         else if (combined.Contains("no device found", StringComparison.OrdinalIgnoreCase) ||
@@ -827,7 +827,7 @@ if ($dev) {{
             {
                 "The USB-JTAG cable is not visible to the OS.",
                 "Check: USB cable firmly plugged in at both ends, and the WCH CH347 driver is installed (Device Manager should show 'WCH CH347' under USB devices).",
-                "If the driver shows a yellow warning, reinstall it via the WCH driver included with NexusForge."
+                "If the driver shows a yellow warning, reinstall it via the WCH driver included with Sylnar."
             };
         }
         else if (combined.Contains("invalid JTAG IDCODE", StringComparison.OrdinalIgnoreCase) ||

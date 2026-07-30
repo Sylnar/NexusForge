@@ -1,8 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
-using NexusForge.ViewModels;
+using Sylnar.ViewModels;
 
-namespace NexusForge.Views.Controls;
+namespace Sylnar.Views.Controls;
 
 public partial class DmaTestPanel : UserControl
 {

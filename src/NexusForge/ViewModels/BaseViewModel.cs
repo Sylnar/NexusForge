@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace NexusForge.ViewModels;
+namespace Sylnar.ViewModels;
 
 public class BaseViewModel : INotifyPropertyChanged
 {

@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:NexusForge.ViewModels"
-             x:Class="NexusForge.Views.Controls.FlashPanel"
+             xmlns:vm="using:Sylnar.ViewModels"
+             x:Class="Sylnar.Views.Controls.FlashPanel"
              x:DataType="vm:FlashViewModel">
 
   <Border Background="#161B22"

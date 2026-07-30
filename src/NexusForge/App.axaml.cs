@@ -3,13 +3,13 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NexusForge.Helpers;
-using NexusForge.Models;
-using NexusForge.Services;
-using NexusForge.ViewModels;
-using NexusForge.Views;
+using Sylnar.Helpers;
+using Sylnar.Models;
+using Sylnar.Services;
+using Sylnar.ViewModels;
+using Sylnar.Views;
 
-namespace NexusForge;
+namespace Sylnar;
 
 public class App : Application
 {

@@ -1,18 +1,18 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
-using NexusForge.Models;
-using NexusForge.Services;
+using Sylnar.Models;
+using Sylnar.Services;
 
-namespace NexusForge;
+namespace Sylnar;
 
 /// <summary>
 /// Headless CLI runner for the DMA test, used for SSH / automation verification
 /// without bringing up the Avalonia GUI. Mirrors Lone's "lone-dma-test.exe full".
 ///
-///   NexusForge.exe --dmatest full | latency | throughput | stress
+///   Sylnar.exe --dmatest full | latency | throughput | stress
 ///
-/// NexusForge is built as OutputType=WinExe (no console subsystem), so when launched
+/// Sylnar is built as OutputType=WinExe (no console subsystem), so when launched
 /// over SSH / from a redirected pipe there is no console to write to. We attach to the
 /// parent console if one exists (AttachConsole(-1)), otherwise allocate a fresh one
 /// (AllocConsole), then reopen Console.Out onto it. As a belt-and-suspenders fallback
@@ -68,7 +68,7 @@ internal static class HeadlessDmaTest
                 catch { /* console may be detached under some SSH contexts */ }
             });
 
-            Console.WriteLine($"NexusForge headless DMA test - mode: {mode}");
+            Console.WriteLine($"Sylnar headless DMA test - mode: {mode}");
             Console.WriteLine("Connecting and running... (this may take from seconds to minutes)");
             Console.Out.Flush();
 
@@ -99,7 +99,7 @@ internal static class HeadlessDmaTest
     /// Headless deploy: generate a fresh probe-verified mmap, then run DeployToTools to
     /// push the custom leechcore + FTDI chain + fresh mmap into every DMA tool folder on
     /// this PC. Prints + writes the DeployResult, then Environment.Exit()s.
-    ///   NexusForge.exe --deploy
+    ///   Sylnar.exe --deploy
     /// </summary>
     public static void RunDeploy(string[] args)
     {
@@ -117,7 +117,7 @@ internal static class HeadlessDmaTest
                 catch { }
             });
 
-            Console.WriteLine("NexusForge headless deploy - generating mmap, then deploying to tool folders...");
+            Console.WriteLine("Sylnar headless deploy - generating mmap, then deploying to tool folders...");
             Console.Out.Flush();
 
             // Fresh probe-verified mmap so each tool folder gets a current map.
@@ -128,7 +128,7 @@ internal static class HeadlessDmaTest
 
             var dr = dma.DeployToToolsAsync(mmapContent, progress, CancellationToken.None).GetAwaiter().GetResult();
 
-            sb.AppendLine("=== NexusForge Deploy-to-Tools Result ===");
+            sb.AppendLine("=== Sylnar Deploy-to-Tools Result ===");
             sb.AppendLine($"Success            : {dr.Success}");
             sb.AppendLine($"Folders found      : {dr.FoldersFound}");
             sb.AppendLine($"Leechcore replaced : {dr.LeechcoreReplaced}");
@@ -215,7 +215,7 @@ internal static class HeadlessDmaTest
     /// </summary>
     private static void FormatResult(StringBuilder sb, DmaTestResult r)
     {
-        sb.AppendLine("=== NexusForge DMA Test Result ===");
+        sb.AppendLine("=== Sylnar DMA Test Result ===");
         sb.AppendLine($"TestType      : {r.TestType}");
         sb.AppendLine($"Result        : {(r.Success ? "PASS" : "FAIL")}");
         sb.AppendLine($"OverallRating : {r.OverallRating}");

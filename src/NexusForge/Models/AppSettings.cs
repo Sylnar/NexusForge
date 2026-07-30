@@ -1,6 +1,6 @@
-using NexusForge.Helpers;
+using Sylnar.Helpers;
 
-namespace NexusForge.Models;
+namespace Sylnar.Models;
 
 public class AppSettings
 {

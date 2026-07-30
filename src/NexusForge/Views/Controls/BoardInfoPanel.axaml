@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:NexusForge.ViewModels"
-             x:Class="NexusForge.Views.Controls.BoardInfoPanel"
+             xmlns:vm="using:Sylnar.ViewModels"
+             x:Class="Sylnar.Views.Controls.BoardInfoPanel"
              x:DataType="vm:BoardInfoViewModel">
 
   <Border Background="#161B22"

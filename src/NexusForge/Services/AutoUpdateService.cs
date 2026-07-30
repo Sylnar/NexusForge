@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json;
-using NexusForge.Helpers;
-using NexusForge.Models;
+using Sylnar.Helpers;
+using Sylnar.Models;
 
-namespace NexusForge.Services;
+namespace Sylnar.Services;
 
 public class AutoUpdateService
 {
@@ -32,7 +32,7 @@ public class AutoUpdateService
             _logService.Info("Checking for updates...");
 
             using var client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("NexusForge-Updater/1.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Sylnar-Updater/1.0");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
             client.Timeout = TimeSpan.FromSeconds(15);
 
@@ -61,7 +61,7 @@ public class AutoUpdateService
 
             if (rv <= lv)
             {
-                _logService.Info($"NexusForge is up to date (v{_settings.Version}).");
+                _logService.Info($"Sylnar is up to date (v{_settings.Version}).");
                 // We're current: clear any stuck-update bookkeeping for a clean slate.
                 ClearUpdateAttempts();
                 return false;
@@ -107,7 +107,7 @@ public class AutoUpdateService
 
             progress?.Report(new UpdateProgress { Stage = UpdateStage.Found, Version = remote });
             _logService.Info($"Downloading update (~{expectedSize / 1024} KB)...");
-            var temp = Path.Combine(Path.GetTempPath(), $"NexusForge_update_{Guid.NewGuid():N}.exe");
+            var temp = Path.Combine(Path.GetTempPath(), $"Sylnar_update_{Guid.NewGuid():N}.exe");
 
             using var dl = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
             if (!dl.IsSuccessStatusCode)
@@ -205,7 +205,7 @@ public class AutoUpdateService
             var batLog = GetBatLogPath();
 
             // The swap script. Key fix vs the old version (which only waited for its OWN
-            // pid and did a single move): it kills EVERY NexusForge instance first, so a
+            // pid and did a single move): it kills EVERY Sylnar instance first, so a
             // lingering sibling can't keep the exe file locked, then retries the
             // copy-overwrite and verifies the new size landed before relaunching. On
             // failure it still relaunches the current exe so the user is never left with
@@ -225,8 +225,8 @@ public class AutoUpdateService
                 goto wait
 
                 :kill
-                echo [%date% %time%] killing all NexusForge instances to release file lock >> "%LOG%"
-                taskkill /F /IM NexusForge.exe >nul 2>&1
+                echo [%date% %time%] killing all Sylnar instances to release file lock >> "%LOG%"
+                taskkill /F /IM Sylnar.exe >nul 2>&1
                 timeout /t 2 /nobreak >nul
 
                 set TRY=0

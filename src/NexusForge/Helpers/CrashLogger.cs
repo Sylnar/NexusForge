@@ -3,10 +3,10 @@ using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Text;
 
-namespace NexusForge.Helpers;
+namespace Sylnar.Helpers;
 
 /// <summary>
-/// Global unhandled-exception logger. Writes to %LOCALAPPDATA%\NexusForge\crash.log
+/// Global unhandled-exception logger. Writes to %LOCALAPPDATA%\Sylnar\crash.log
 /// so silent process deaths on Windows (especially Win11 25H2) leave a forensic trail
 /// instead of a flash-and-bye. Also tracks normal start/exit so we can detect when a
 /// previous run crashed (used by Program.cs to wipe the .NET single-file extraction
@@ -32,7 +32,7 @@ internal static class CrashLogger
         try
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            LogDirectory = Path.Combine(appData, "NexusForge");
+            LogDirectory = Path.Combine(appData, "Sylnar");
             Directory.CreateDirectory(LogDirectory);
 
             _logPath = Path.Combine(LogDirectory, "crash.log");
@@ -67,7 +67,7 @@ internal static class CrashLogger
         AppDomain.CurrentDomain.FirstChanceException += OnFirstChanceException;
         AppDomain.CurrentDomain.ProcessExit += (_, _) => MarkCleanExit();
 
-        WriteLine($"=== NexusForge launched (PID {Environment.ProcessId}, " +
+        WriteLine($"=== Sylnar launched (PID {Environment.ProcessId}, " +
                   $"v{Assembly.GetExecutingAssembly().GetName().Version}, " +
                   $"OS {Environment.OSVersion}, .NET {Environment.Version}) ===");
         if (PreviousRunCrashed)

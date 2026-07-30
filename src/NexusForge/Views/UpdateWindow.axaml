@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="NexusForge.Views.UpdateWindow"
-        Title="Updating NexusForge"
+        x:Class="Sylnar.Views.UpdateWindow"
+        Title="Updating Sylnar"
         Width="440" Height="200"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
@@ -38,7 +38,7 @@
           </Border>
 
           <StackPanel VerticalAlignment="Center" Spacing="3">
-            <TextBlock Text="Updating NexusForge"
+            <TextBlock Text="Updating Sylnar"
                        FontSize="17" FontWeight="Bold" Foreground="#E6EDF3" />
             <TextBlock Name="StatusText"
                        Text="Preparing update..."

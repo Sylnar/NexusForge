@@ -1,10 +1,10 @@
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
-using NexusForge.Helpers;
-using NexusForge.Models;
-using NexusForge.Services;
+using Sylnar.Helpers;
+using Sylnar.Models;
+using Sylnar.Services;
 
-namespace NexusForge.ViewModels;
+namespace Sylnar.ViewModels;
 
 public class FlashViewModel : BaseViewModel
 {

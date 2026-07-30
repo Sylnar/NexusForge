@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/NexusForge-v1.0.0-00D4AA?style=for-the-badge&labelColor=0D1117" />
+  <img src="https://img.shields.io/badge/Sylnar-v1.0.0-00D4AA?style=for-the-badge&labelColor=0D1117" />
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white&labelColor=0D1117" />
   <img src="https://img.shields.io/badge/.NET%208-512BD4?style=for-the-badge&logo=dotnet&logoColor=white&labelColor=0D1117" />
   <img src="https://img.shields.io/badge/License-Proprietary-FF5252?style=for-the-badge&labelColor=0D1117" />
 </p>
 
-<h1 align="center">NexusForge</h1>
+<h1 align="center">Sylnar</h1>
 
 <p align="center">
   <strong>Professional FPGA DMA Board Management Tool</strong><br/>
@@ -16,9 +16,9 @@
 
 ## Overview
 
-NexusForge is a standalone Windows application for managing FPGA-based DMA boards. It provides a clean, modern interface to perform every operation needed for board setup and firmware deployment — no Vivado installation required.
+Sylnar is a standalone Windows application for managing FPGA-based DMA boards. It provides a clean, modern interface to perform every operation needed for board setup and firmware deployment — no Vivado installation required.
 
-**One file. No dependencies. Just run `NexusForge.exe`.**
+**One file. No dependencies. Just run `Sylnar.exe`.**
 
 ---
 
@@ -57,18 +57,18 @@ NexusForge is a standalone Windows application for managing FPGA-based DMA board
 ## Quick Start
 
 ### 1. Download
-Download `NexusForge.exe` from the [latest release](../../releases/latest).
+Download `Sylnar.exe` from the [latest release](../../releases/latest).
 
 ### 2. Install Drivers (First Time Only)
 - Connect your DMA board via USB
-- Launch NexusForge (run as Administrator)
+- Launch Sylnar (run as Administrator)
 - Go to the **Drivers** tab
 - Click **Install CH347 Driver** (for JTAG)
 - Click **Install FT601 Driver** (for DMA data)
 
 ### 3. Detect Board
 - Click **Detect Board**
-- NexusForge will display your board info and **Device DNA**
+- Sylnar will display your board info and **Device DNA**
 - Click **Copy DNA** to copy it to clipboard
 
 ### 4. Flash Firmware
@@ -85,11 +85,11 @@ Download `NexusForge.exe` from the [latest release](../../releases/latest).
 ┌──────────────┐     USB      ┌──────────────┐     PCIe     ┌──────────────┐
 │   Radar PC   │◄────────────►│  DMA Board   │◄────────────►│  Gaming PC   │
 │              │   CH347 JTAG │  (FPGA)      │   x1 Gen2    │              │
-│  NexusForge  │   FT601 Data │              │              │  Target      │
+│  Sylnar  │   FT601 Data │              │              │  Target      │
 └──────────────┘              └──────────────┘              └──────────────┘
 ```
 
-NexusForge communicates with the DMA board over USB:
+Sylnar communicates with the DMA board over USB:
 - **CH347 JTAG** — Used for board detection, DNA reading, and firmware flashing via OpenOCD
 - **FT601 USB3** — Used for DMA data transfer (speed testing)
 
@@ -98,7 +98,7 @@ NexusForge communicates with the DMA board over USB:
 ## Customer Workflow
 
 ```
-1. Install NexusForge on radar PC
+1. Install Sylnar on radar PC
 2. Connect DMA board via USB
 3. Click "Detect Board" → copy DNA
 4. Send DNA to firmware provider
@@ -112,7 +112,7 @@ NexusForge communicates with the DMA board over USB:
 
 ## Auto-Update
 
-NexusForge checks for updates automatically when launched. If a new version is available:
+Sylnar checks for updates automatically when launched. If a new version is available:
 1. Downloads the update in the background
 2. Shows status in the log panel
 3. Replaces the old exe and restarts
@@ -145,5 +145,5 @@ No manual downloads needed after initial install.
 ---
 
 <p align="center">
-  <sub>NexusForge v1.0.0 — Built for the community</sub>
+  <sub>Sylnar v1.0.0 — Built for the community</sub>
 </p>

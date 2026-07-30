@@ -1,6 +1,6 @@
-using NexusForge.Models;
+using Sylnar.Models;
 
-namespace NexusForge.Helpers;
+namespace Sylnar.Helpers;
 
 public static class FileValidator
 {

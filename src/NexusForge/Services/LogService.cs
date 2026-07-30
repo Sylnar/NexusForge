@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
-using NexusForge.Helpers;
-using NexusForge.Models;
+using Sylnar.Helpers;
+using Sylnar.Models;
 
-namespace NexusForge.Services;
+namespace Sylnar.Services;
 
 public class LogService
 {

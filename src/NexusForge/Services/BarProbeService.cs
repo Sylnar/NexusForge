@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
-using NexusForge.Helpers;
+using Sylnar.Helpers;
 
-namespace NexusForge.Services;
+namespace Sylnar.Services;
 
 /// <summary>
 /// Reads physical memory addresses through the FPGA via leechcore.

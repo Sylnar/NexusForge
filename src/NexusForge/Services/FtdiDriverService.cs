@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using NexusForge.Helpers;
-using NexusForge.Models;
+using Sylnar.Helpers;
+using Sylnar.Models;
 
-namespace NexusForge.Services;
+namespace Sylnar.Services;
 
 public class FtdiDriverService
 {

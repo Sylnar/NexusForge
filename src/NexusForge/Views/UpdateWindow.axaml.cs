@@ -2,7 +2,7 @@ using System;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
-namespace NexusForge.Views;
+namespace Sylnar.Views;
 
 public partial class UpdateWindow : Window
 {

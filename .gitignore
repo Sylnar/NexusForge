@@ -30,3 +30,5 @@ check-size.ps1
 
 # Obfuscar output
 Mapping.txt
+
+**/dist_test/

@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace NexusForge.Helpers;
+namespace Sylnar.Helpers;
 
 internal static class IntegrityGuard
 {

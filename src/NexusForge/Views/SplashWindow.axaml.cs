@@ -5,9 +5,9 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Threading;
-using NexusForge.Helpers;
+using Sylnar.Helpers;
 
-namespace NexusForge.Views;
+namespace Sylnar.Views;
 
 public partial class SplashWindow : Window
 {

@@ -1,9 +1,9 @@
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
-using NexusForge.Models;
-using NexusForge.Services;
+using Sylnar.Models;
+using Sylnar.Services;
 
-namespace NexusForge.ViewModels;
+namespace Sylnar.ViewModels;
 
 public class BoardInfoViewModel : BaseViewModel
 {

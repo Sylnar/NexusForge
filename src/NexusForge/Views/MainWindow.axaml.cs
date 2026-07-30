@@ -3,11 +3,11 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
-using NexusForge.Services;
-using NexusForge.ViewModels;
+using Sylnar.Services;
+using Sylnar.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace NexusForge.Views;
+namespace Sylnar.Views;
 
 public partial class MainWindow : Window
 {
@@ -126,7 +126,7 @@ public class ShutdownWindow : Window
 {
     public ShutdownWindow()
     {
-        Title = "NexusForge";
+        Title = "Sylnar";
         Width = 280;
         Height = 120;
         CanResize = false;

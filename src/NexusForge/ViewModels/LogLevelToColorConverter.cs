@@ -2,7 +2,7 @@ using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
-namespace NexusForge.ViewModels;
+namespace Sylnar.ViewModels;
 
 public class LogLevelToColorConverter : IValueConverter
 {

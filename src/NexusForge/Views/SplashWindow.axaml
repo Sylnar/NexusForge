@@ -1,8 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:h="using:NexusForge.Helpers"
-        x:Class="NexusForge.Views.SplashWindow"
-        Title="NexusForge"
+        xmlns:h="using:Sylnar.Helpers"
+        x:Class="Sylnar.Views.SplashWindow"
+        Title="Sylnar"
         Width="460" Height="340"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
@@ -44,7 +44,7 @@
               </LinearGradientBrush>
             </Border.Background>
             <Border.BoxShadow>0 4 24 0 #4000D4AA</Border.BoxShadow>
-            <TextBlock Text="N"
+            <TextBlock Text="S"
                        Foreground="#0A0D14"
                        FontSize="36"
                        FontWeight="Bold"
@@ -54,7 +54,7 @@
 
           <!-- Title -->
           <StackPanel HorizontalAlignment="Center" Spacing="4">
-            <TextBlock Text="NEXUSFORGE"
+            <TextBlock Text="SYLNAR"
                        FontSize="28"
                        FontWeight="Bold"
                        Foreground="#E6EDF3"

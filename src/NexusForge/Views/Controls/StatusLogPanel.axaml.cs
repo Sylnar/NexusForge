@@ -1,9 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using NexusForge.ViewModels;
+using Sylnar.ViewModels;
 
-namespace NexusForge.Views.Controls;
+namespace Sylnar.Views.Controls;
 
 public partial class StatusLogPanel : UserControl
 {

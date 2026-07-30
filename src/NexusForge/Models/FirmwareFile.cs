@@ -1,4 +1,4 @@
-namespace NexusForge.Models;
+namespace Sylnar.Models;
 
 public class FirmwareFile
 {

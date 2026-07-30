@@ -9,18 +9,18 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>NexusForge</AssemblyName>
-    <ApplicationIcon>nexusforge.ico</ApplicationIcon>
-    <RootNamespace>NexusForge</RootNamespace>
-    <Version>1.1.26</Version>
-    <Product>NexusForge</Product>
-    <Company>NexusForge</Company>
-    <Authors>NexusForge</Authors>
-    <Copyright>Copyright (C) 2026 NexusForge. All rights reserved.</Copyright>
+    <AssemblyName>Sylnar</AssemblyName>
+    <ApplicationIcon>sylnar.ico</ApplicationIcon>
+    <RootNamespace>Sylnar</RootNamespace>
+    <Version>1.1.27</Version>
+    <Product>Sylnar</Product>
+    <Company>Sylnar</Company>
+    <Authors>Sylnar</Authors>
+    <Copyright>Copyright (C) 2026 Sylnar. All rights reserved.</Copyright>
     <Description>FPGA DMA board management tool.</Description>
-    <FileVersion>1.1.26.0</FileVersion>
-    <AssemblyVersion>1.1.26.0</AssemblyVersion>
-    <InformationalVersion>1.1.26</InformationalVersion>
+    <FileVersion>1.1.27.0</FileVersion>
+    <AssemblyVersion>1.1.27.0</AssemblyVersion>
+    <InformationalVersion>1.1.27</InformationalVersion>
     <NeutralLanguage>en</NeutralLanguage>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>

@@ -1,10 +1,10 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Windows.Input;
-using NexusForge.Models;
-using NexusForge.Services;
+using Sylnar.Models;
+using Sylnar.Services;
 
-namespace NexusForge.ViewModels;
+namespace Sylnar.ViewModels;
 
 public class MainViewModel : BaseViewModel
 {
@@ -54,13 +54,13 @@ public class MainViewModel : BaseViewModel
         _dmaTest = dmaTest;
         _barProbe = barProbe;
 
-        _statusBarText = $"NexusForge v{_settings.Version}  ·  DMA FPGA Management Tool";
+        _statusBarText = $"Sylnar v{_settings.Version}  ·  DMA FPGA Management Tool";
 
         ClearLogCommand = new RelayCommand(ClearLog);
         CopyLogCommand = new AsyncRelayCommand(CopyLogAsync);
 
         _logService.LogAdded += OnLogAdded;
-        _logService.Info($"NexusForge v{_settings.Version} started");
+        _logService.Info($"Sylnar v{_settings.Version} started");
     }
 
     private void OnLogAdded(object? sender, LogEntry entry)

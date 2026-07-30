@@ -1,9 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:NexusForge.ViewModels"
-        xmlns:ctrl="using:NexusForge.Views.Controls"
-        xmlns:h="using:NexusForge.Helpers"
-        x:Class="NexusForge.Views.MainWindow"
+        xmlns:vm="using:Sylnar.ViewModels"
+        xmlns:ctrl="using:Sylnar.Views.Controls"
+        xmlns:h="using:Sylnar.Helpers"
+        x:Class="Sylnar.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="{x:Static h:VersionInfo.WindowTitle}"
         Width="950" Height="960"
@@ -16,7 +16,7 @@
 
   <Window.Styles>
 
-    <!-- â”€â”€ Primary button â”€â”€ -->
+    <!-- ── Primary button ── -->
     <Style Selector="Button.primary">
       <Setter Property="Background"      Value="#00D4AA"/>
       <Setter Property="Foreground"      Value="#0A0D14"/>
@@ -34,7 +34,7 @@
       <Setter Property="Opacity" Value="0.70"/>
     </Style>
 
-    <!-- â”€â”€ Teal outline â”€â”€ -->
+    <!-- ── Teal outline ── -->
     <Style Selector="Button.teal-outline">
       <Setter Property="Background"      Value="Transparent"/>
       <Setter Property="Foreground"      Value="#00D4AA"/>
@@ -49,7 +49,7 @@
       <Setter Property="Opacity" Value="0.75"/>
     </Style>
 
-    <!-- â”€â”€ Danger outline â”€â”€ -->
+    <!-- ── Danger outline ── -->
     <Style Selector="Button.danger-outline">
       <Setter Property="Background"      Value="Transparent"/>
       <Setter Property="Foreground"      Value="#F85149"/>
@@ -65,7 +65,7 @@
       <Setter Property="Opacity" Value="0.75"/>
     </Style>
 
-    <!-- â”€â”€ Ghost â”€â”€ -->
+    <!-- ── Ghost ── -->
     <Style Selector="Button.ghost">
       <Setter Property="Background"      Value="Transparent"/>
       <Setter Property="Foreground"      Value="#6E7681"/>
@@ -79,19 +79,19 @@
       <Setter Property="Opacity" Value="0.70"/>
     </Style>
 
-    <!-- â”€â”€ Disabled â”€â”€ -->
+    <!-- ── Disabled ── -->
     <Style Selector="Button:disabled">
       <Setter Property="Opacity" Value="0.32"/>
       <Setter Property="Cursor"  Value="Arrow"/>
     </Style>
 
-    <!-- â”€â”€ CheckBox â”€â”€ -->
+    <!-- ── CheckBox ── -->
     <Style Selector="CheckBox">
       <Setter Property="Foreground" Value="#8B949E"/>
       <Setter Property="FontSize"   Value="12"/>
     </Style>
 
-    <!-- â”€â”€ ProgressBar â”€â”€ -->
+    <!-- ── ProgressBar ── -->
     <Style Selector="ProgressBar">
       <Setter Property="Foreground"   Value="#00D4AA"/>
       <Setter Property="Background"   Value="#21262D"/>
@@ -100,7 +100,7 @@
       <Setter Property="MinHeight"    Value="6"/>
     </Style>
 
-    <!-- â”€â”€ TabControl chrome â”€â”€ -->
+    <!-- ── TabControl chrome ── -->
     <Style Selector="TabControl">
       <Setter Property="Background"   Value="Transparent"/>
       <Setter Property="Padding"      Value="0"/>
@@ -127,19 +127,19 @@
   </Window.Styles>
 
   <!--
-    DockPanel layout â€” items dock in order:
-      1. Header       â†’ Top    (fixed height)
-      2. StatusBar    â†’ Bottom (fixed height)
-      3. StatusLog    â†’ Bottom (fixed 200px)
-      4. TabControl   â†’ Fill   (takes ALL remaining space)
+    DockPanel layout — items dock in order:
+      1. Header       → Top    (fixed height)
+      2. StatusBar    → Bottom (fixed height)
+      3. StatusLog    → Bottom (fixed 200px)
+      4. TabControl   → Fill   (takes ALL remaining space)
     This guarantees the log never pushes tab content up.
   -->
   <DockPanel LastChildFill="True">
 
-    <!-- â”€â”€â”€ 1. HEADER â€” docked top â”€â”€â”€ -->
+    <!-- ─── 1. HEADER — docked top ─── -->
     <ctrl:HeaderControl DockPanel.Dock="Top" DataContext="{Binding}" />
 
-    <!-- â”€â”€â”€ 2. STATUS BAR â€” docked bottom â”€â”€â”€ -->
+    <!-- ─── 2. STATUS BAR — docked bottom ─── -->
     <Border DockPanel.Dock="Bottom"
             Background="#161B22"
             BorderBrush="#21262D"
@@ -156,16 +156,16 @@
       </Grid>
     </Border>
 
-    <!-- â”€â”€â”€ 3. STATUS LOG â€” docked bottom, FIXED 200px height â”€â”€â”€ -->
+    <!-- ─── 3. STATUS LOG — docked bottom, FIXED 200px height ─── -->
     <ctrl:StatusLogPanel DockPanel.Dock="Bottom"
                          DataContext="{Binding}"
                          Height="200"
                          Margin="12,4,12,8" />
 
-    <!-- â”€â”€â”€ 4. TAB CONTROL â€” fills all remaining space â”€â”€â”€ -->
+    <!-- ─── 4. TAB CONTROL — fills all remaining space ─── -->
     <TabControl Background="Transparent" Margin="0">
 
-      <!-- â•â•â• Tab 1: BOARD & FLASH â•â•â• -->
+      <!-- ═══ Tab 1: BOARD & FLASH ═══ -->
       <TabItem Header="  BOARD &amp; FLASH  ">
         <StackPanel>
           <ctrl:BoardInfoPanel DataContext="{Binding BoardInfo}" Margin="12,8,12,0" />
@@ -173,7 +173,7 @@
         </StackPanel>
       </TabItem>
 
-      <!-- â•â•â• Tab 2: DRIVER MANAGER â•â•â• -->
+      <!-- ═══ Tab 2: DRIVER MANAGER ═══ -->
       <TabItem Header="  DRIVER MANAGER  ">
         <StackPanel>
           <ctrl:DriverPanel DataContext="{Binding Driver}" Margin="12,8,12,6" />
@@ -196,7 +196,7 @@
 
                 <StackPanel Spacing="6">
                   <TextBlock Foreground="#8B949E" FontSize="12" TextWrapping="Wrap">
-                    NexusForge uses OpenOCD to communicate with DMA boards via the
+                    Sylnar uses OpenOCD to communicate with DMA boards via the
                     CH347 USB-JTAG chip. The WCH CH347 driver MUST be installed for this to work.
                     Without it, OpenOCD cannot access the JTAG interface.
                   </TextBlock>
@@ -213,7 +213,7 @@
                                  FontFamily="Consolas,Courier New,monospace">
                         https://github.com/WCHSoftGroup/ch347
                       </TextBlock>
-                      <TextBlock Text="Release: CH347_OpenOCD_Release â€” contains OpenOCD binary and CH347FPGATool"
+                      <TextBlock Text="Release: CH347_OpenOCD_Release — contains OpenOCD binary and CH347FPGATool"
                                  Foreground="#6E7681" FontSize="11" />
                     </StackPanel>
                   </Border>
@@ -224,7 +224,7 @@
           </StackPanel>
       </TabItem>
 
-      <!-- â•â•â• Tab 4: BAR PROBE â•â•â• -->
+      <!-- ═══ Tab 4: BAR PROBE ═══ -->
       <TabItem Header="  BAR PROBE  ">
         <StackPanel>
           <ctrl:BarProbePanel DataContext="{Binding BarProbe}" Margin="12,8,12,6" />
@@ -253,17 +253,17 @@
                   <Run FontWeight="SemiBold" Foreground="#E3B341">Limitation:</Run>
                   The DMA card cannot read its OWN BAR memory via this path on
                   most chipsets (PCIe self-loopback / peer-to-peer routing is
-                  usually blocked). Use "Read DMA Config Space" instead â€” it uses
+                  usually blocked). Use "Read DMA Config Space" instead — it uses
                   Type 0 config TLPs which the root complex always routes correctly.
                 </TextBlock>
                 <TextBlock Foreground="#8B949E" FontSize="12" TextWrapping="Wrap">
                   Helpers:
                   <LineBreak/>
-                  â€¢ <Run FontWeight="SemiBold">Test FPGA Link</Run> â€” reads system RAM at 0x100000, confirms FTDI + leechcore + FPGA chain works
+                  • <Run FontWeight="SemiBold">Test FPGA Link</Run> — reads system RAM at 0x100000, confirms FTDI + leechcore + FPGA chain works
                   <LineBreak/>
-                  â€¢ <Run FontWeight="SemiBold">Read DMA Config Space</Run> â€” reads the FPGA's own PCIe config space (vendor/device IDs, BARs, capabilities, DSN)
+                  • <Run FontWeight="SemiBold">Read DMA Config Space</Run> — reads the FPGA's own PCIe config space (vendor/device IDs, BARs, capabilities, DSN)
                   <LineBreak/>
-                  â€¢ <Run FontWeight="SemiBold">List PCIe Devices</Run> â€” enumerates host PCIe devices + their BAR address ranges so you can pick a target without hunting in Device Manager
+                  • <Run FontWeight="SemiBold">List PCIe Devices</Run> — enumerates host PCIe devices + their BAR address ranges so you can pick a target without hunting in Device Manager
                 </TextBlock>
                 <TextBlock Foreground="#8B949E" FontSize="12" TextWrapping="Wrap">
                   Polling: appends a timestamped hex dump to the log file every
@@ -277,7 +277,7 @@
         </StackPanel>
       </TabItem>
 
-      <!-- â•â•â• Tab 3: DMA TESTING â•â•â• -->
+      <!-- ═══ Tab 3: DMA TESTING ═══ -->
       <TabItem Header="  DMA TESTING  ">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <StackPanel>
@@ -301,14 +301,14 @@
 
               <StackPanel Spacing="6">
                 <TextBlock Foreground="#8B949E" FontSize="12" TextWrapping="Wrap">
-                  NexusForge tests DMA read performance through the FPGA board's FT601 data port.
+                  Sylnar tests DMA read performance through the FPGA board's FT601 data port.
                   The FTDI SuperSpeed driver must be installed and the board must have PCILeech-compatible
                   firmware loaded (flash + cold reboot required).
                 </TextBlock>
                 <TextBlock Foreground="#8B949E" FontSize="12" TextWrapping="Wrap">
                   Full Test: process lookup + latency (4KB reads) + throughput (16MB reads).
-                  Latency Test: 30 seconds of 4KB random reads â€” measures RPS and per-read timing.
-                  Throughput Test: 15 seconds of 16MB sequential reads â€” measures sustained MB/s.
+                  Latency Test: 30 seconds of 4KB random reads — measures RPS and per-read timing.
+                  Throughput Test: 15 seconds of 16MB sequential reads — measures sustained MB/s.
                   Stress Test: long-duration soak (default 5 min, configurable 1-60 min) mixing
                   4KB and 16MB reads, tracking failures and the longest consecutive-failure streak.
                   Reports PASS if the DMA path stays stable for the whole duration.

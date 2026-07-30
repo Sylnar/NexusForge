@@ -13,24 +13,24 @@
   <Var name="SuppressIldasm" value="true" />
   <Var name="RegenerateDebugInfo" value="false" />
 
-  <Module file="NexusForge.dll">
+  <Module file="Sylnar.dll">
     <SkipNamespace name="Avalonia*" />
-    <SkipType name="NexusForge.ViewModels.MainViewModel" skipProperties="true" skipMethods="true" />
-    <SkipType name="NexusForge.ViewModels.BoardInfoViewModel" skipProperties="true" skipMethods="true" />
-    <SkipType name="NexusForge.ViewModels.FlashViewModel" skipProperties="true" skipMethods="true" />
-    <SkipType name="NexusForge.ViewModels.DriverViewModel" skipProperties="true" skipMethods="true" />
-    <SkipType name="NexusForge.ViewModels.DmaTestViewModel" skipProperties="true" skipMethods="true" />
-    <SkipType name="NexusForge.ViewModels.BaseViewModel" />
-    <SkipType name="NexusForge.ViewModels.LogLevelToColorConverter" />
-    <SkipType name="NexusForge.Models.BoardInfo" skipProperties="true" />
-    <SkipType name="NexusForge.Models.FlashProgress" skipProperties="true" />
-    <SkipType name="NexusForge.Models.FlashResult" skipProperties="true" />
-    <SkipType name="NexusForge.Models.FirmwareFile" skipProperties="true" />
-    <SkipType name="NexusForge.Models.AppSettings" skipProperties="true" />
-    <SkipType name="NexusForge.Models.DriverInfo" skipProperties="true" />
-    <SkipType name="NexusForge.Models.ProcessResult" skipProperties="true" />
-    <SkipType name="NexusForge.Program" />
-    <SkipType name="NexusForge.App" />
-    <SkipType name="NexusForge.Views.*" />
+    <SkipType name="Sylnar.ViewModels.MainViewModel" skipProperties="true" skipMethods="true" />
+    <SkipType name="Sylnar.ViewModels.BoardInfoViewModel" skipProperties="true" skipMethods="true" />
+    <SkipType name="Sylnar.ViewModels.FlashViewModel" skipProperties="true" skipMethods="true" />
+    <SkipType name="Sylnar.ViewModels.DriverViewModel" skipProperties="true" skipMethods="true" />
+    <SkipType name="Sylnar.ViewModels.DmaTestViewModel" skipProperties="true" skipMethods="true" />
+    <SkipType name="Sylnar.ViewModels.BaseViewModel" />
+    <SkipType name="Sylnar.ViewModels.LogLevelToColorConverter" />
+    <SkipType name="Sylnar.Models.BoardInfo" skipProperties="true" />
+    <SkipType name="Sylnar.Models.FlashProgress" skipProperties="true" />
+    <SkipType name="Sylnar.Models.FlashResult" skipProperties="true" />
+    <SkipType name="Sylnar.Models.FirmwareFile" skipProperties="true" />
+    <SkipType name="Sylnar.Models.AppSettings" skipProperties="true" />
+    <SkipType name="Sylnar.Models.DriverInfo" skipProperties="true" />
+    <SkipType name="Sylnar.Models.ProcessResult" skipProperties="true" />
+    <SkipType name="Sylnar.Program" />
+    <SkipType name="Sylnar.App" />
+    <SkipType name="Sylnar.Views.*" />
   </Module>
 </Obfuscator>

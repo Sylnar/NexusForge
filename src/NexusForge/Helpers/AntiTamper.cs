@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace NexusForge.Helpers;
+namespace Sylnar.Helpers;
 // CrashLogger is in this namespace too — no extra using needed.
 
 

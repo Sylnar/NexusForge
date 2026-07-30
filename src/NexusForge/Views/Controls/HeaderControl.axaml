@@ -1,8 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:NexusForge.ViewModels"
-             xmlns:h="using:NexusForge.Helpers"
-             x:Class="NexusForge.Views.Controls.HeaderControl"
+             xmlns:vm="using:Sylnar.ViewModels"
+             xmlns:h="using:Sylnar.Helpers"
+             x:Class="Sylnar.Views.Controls.HeaderControl"
              x:DataType="vm:MainViewModel">
 
   <Border Background="#161B22"
@@ -17,7 +17,7 @@
               Width="40" Height="40"
               VerticalAlignment="Center"
               Margin="0,0,14,0">
-        <TextBlock Text="N" Foreground="#0A0D14"
+        <TextBlock Text="S" Foreground="#0A0D14"
                    FontSize="20" FontWeight="Bold"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
@@ -25,7 +25,7 @@
 
       <!-- Title + tagline -->
       <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-        <TextBlock Text="NEXUSFORGE"
+        <TextBlock Text="SYLNAR"
                    FontSize="19" FontWeight="Bold"
                    Foreground="#E6EDF3" />
         <TextBlock Text="DMA FPGA Management Tool"

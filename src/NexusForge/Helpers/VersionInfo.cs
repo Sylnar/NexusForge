@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace NexusForge.Helpers;
+namespace Sylnar.Helpers;
 
 /// <summary>
 /// Single source of truth for user-visible version strings, resolved once at
@@ -13,7 +13,7 @@ namespace NexusForge.Helpers;
 /// hand. Now csproj &lt;Version&gt; is the only place that changes per release.
 ///
 /// XAML usage:
-///   xmlns:h="using:NexusForge.Helpers"
+///   xmlns:h="using:Sylnar.Helpers"
 ///   Text="{x:Static h:VersionInfo.WithV}"
 ///   Title="{x:Static h:VersionInfo.WindowTitle}"
 /// </summary>
@@ -25,8 +25,8 @@ public static class VersionInfo
     /// <summary>Version prefixed with "v", e.g. "v1.1.25", for badges/footers.</summary>
     public static readonly string WithV = "v" + Value;
 
-    /// <summary>Full window title, e.g. "NexusForge v1.1.25".</summary>
-    public static readonly string WindowTitle = "NexusForge v" + Value;
+    /// <summary>Full window title, e.g. "Sylnar v1.1.25".</summary>
+    public static readonly string WindowTitle = "Sylnar v" + Value;
 
     private static string Resolve()
     {
