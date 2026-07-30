@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Sylnar-v1.0.0-00D4AA?style=for-the-badge&labelColor=0D1117" />
+  <img src="https://img.shields.io/badge/Sylnar-v1.1.27-00D4AA?style=for-the-badge&labelColor=0D1117" />
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white&labelColor=0D1117" />
   <img src="https://img.shields.io/badge/.NET%208-512BD4?style=for-the-badge&logo=dotnet&logoColor=white&labelColor=0D1117" />
   <img src="https://img.shields.io/badge/License-Proprietary-FF5252?style=for-the-badge&labelColor=0D1117" />
