@@ -11,7 +11,7 @@ public class AutoUpdateService
     private readonly LogService _logService;
     private readonly AppSettings _settings;
 
-    private const string Owner = "NexusForge-dev";
+    private const string Owner = "Sylnar";
     private const string Repo = "NexusForge";
 
     // Safety net: if a given target version fails to apply this many times in a row,
