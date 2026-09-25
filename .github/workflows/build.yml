@@ -6,6 +6,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a GitHub release (all installs auto-update to it)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -26,13 +31,15 @@ jobs:
           -c Release -r win-x64
           -o dist
 
-      - name: Check version matches tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Read exe version
+        id: ver
         shell: pwsh
         run: |
           $v = (Get-Item dist/Sylnar.exe).VersionInfo.ProductVersion -replace '\+.*$',''
-          $tag = '${{ github.ref_name }}'.TrimStart('v')
-          if ($v -ne $tag) { throw "Exe version $v does not match tag $tag" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}'.TrimStart('v') -ne $v) {
+            throw "Exe version $v does not match tag ${{ github.ref_name }}"
+          }
 
       - uses: actions/upload-artifact@v4
         with:
@@ -40,10 +47,13 @@ jobs:
           path: dist/Sylnar.exe
           if-no-files-found: error
 
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+
   release:
-    # Publishing a release makes every installed copy auto-update to it, so
-    # this only runs for a pushed v* tag, never for ordinary branch pushes.
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Publishing a release makes every installed copy auto-update to it, so it
+    # only runs for a pushed v* tag or a manual run with "release" ticked.
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -56,8 +66,10 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: v${{ needs.build.outputs.version }}
         run: >
-          gh release create "${{ github.ref_name }}" Sylnar.exe
+          gh release create "$TAG" Sylnar.exe
           --repo "${{ github.repository }}"
-          --title "Sylnar ${{ github.ref_name }}"
+          --target "${{ github.sha }}"
+          --title "Sylnar $TAG"
           --notes "See the commit history for the changes in this release."
