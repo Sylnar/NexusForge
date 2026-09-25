@@ -241,6 +241,8 @@ public class AutoUpdateService
             // nothing (the loop-guard caps repeats). It logs each step to batLog.
             var script = $"""
                 @echo off
+                rem File is written as UTF-8; switch cmd so non-ASCII profile paths parse.
+                chcp 65001 >nul
                 setlocal EnableDelayedExpansion
                 set "LOG={batLog}"
                 echo [%date% %time%] update start, target swap into "{exe}", waiting on pid {pid} >> "%LOG%"

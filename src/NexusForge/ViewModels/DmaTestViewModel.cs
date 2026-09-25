@@ -152,6 +152,12 @@ public class DmaTestViewModel : BaseViewModel
             _ftdiInfPath = info.InfPath;
             IsFtdiChecked = true;
         }
+        catch (Exception ex)
+        {
+            _logService.Error($"FTDI driver check failed: {ex.Message}");
+            FtdiStatusText = "Check failed";
+            FtdiStatusColor = "#F85149";
+        }
         finally { IsFtdiBusy = false; FtdiBusyMessage = ""; }
     }
 
@@ -164,6 +170,7 @@ public class DmaTestViewModel : BaseViewModel
             await _ftdiService.InstallDriverAsync();
             await CheckFtdiAsync();
         }
+        catch (Exception ex) { _logService.Error($"FTDI driver install failed: {ex.Message}"); }
         finally { IsFtdiBusy = false; FtdiBusyMessage = ""; }
     }
 
@@ -176,6 +183,7 @@ public class DmaTestViewModel : BaseViewModel
             await _ftdiService.UninstallDriverAsync(_ftdiInfPath);
             await CheckFtdiAsync();
         }
+        catch (Exception ex) { _logService.Error($"FTDI driver removal failed: {ex.Message}"); }
         finally { IsFtdiBusy = false; FtdiBusyMessage = ""; }
     }
 

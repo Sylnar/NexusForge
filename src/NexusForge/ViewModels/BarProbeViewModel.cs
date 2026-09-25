@@ -260,8 +260,9 @@ public class BarProbeViewModel : BaseViewModel
         SetStatus($"Polling -> {Path.GetFileName(path)}", "#58A6FF");
         _log.Info($"BarProbe poll start: addr=0x{addr:X16} len={len} period={period}ms log={path}");
 
-        _pollCts = new CancellationTokenSource();
-        var ct = _pollCts.Token;
+        var cts = new CancellationTokenSource();
+        _pollCts = cts;
+        var ct = cts.Token;
 
         // Background poll loop. UI updates via dispatcher inside the loop.
         var pollTask = Task.Run(async () =>
@@ -297,6 +298,12 @@ public class BarProbeViewModel : BaseViewModel
         });
 
         await pollTask;
+
+        // The poll can end on its own (read failures, connect error); stop the
+        // sample-counter loop too, or it keeps re-reading the log file forever.
+        cts.Cancel();
+        if (ReferenceEquals(_pollCts, cts)) _pollCts = null;
+        cts.Dispose();
 
         IsPolling = false;
         SetStatus($"Poll stopped. Samples={PollSamples}, file={Path.GetFileName(path)}", "#3FB950");

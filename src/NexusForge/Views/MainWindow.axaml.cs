@@ -102,6 +102,8 @@ public partial class MainWindow : Window
 
             var bat = $"""
                 @echo off
+                rem File is written as UTF-8; switch cmd so non-ASCII profile paths parse.
+                chcp 65001 >nul
                 :wait
                 tasklist /FI "PID eq {pid}" 2>nul | findstr /I "{pid}" >nul
                 if not errorlevel 1 (

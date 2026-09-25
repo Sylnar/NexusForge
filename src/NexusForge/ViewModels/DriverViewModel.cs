@@ -156,6 +156,12 @@ public class DriverViewModel : BaseViewModel
 
             ((AsyncRelayCommand)UninstallDriverCommand).NotifyCanExecuteChanged();
         }
+        catch (Exception ex)
+        {
+            _logService.Error($"Driver check failed: {ex.Message}");
+            StatusText  = "Check failed";
+            StatusColor = "#F85149";
+        }
         finally
         {
             IsBusy      = false;
@@ -166,7 +172,7 @@ public class DriverViewModel : BaseViewModel
     private async Task InstallDriverAsync()
     {
         IsBusy = true;
-        BusyMessage = "Downloading driver...";
+        BusyMessage = "Preparing driver...";
 
         try
         {
@@ -179,8 +185,14 @@ public class DriverViewModel : BaseViewModel
                 await CheckDriverAsync();
                 return;
             }
-            StatusText  = "Install in browser";
+            StatusText  = "Install failed";
             StatusColor = "#E3B341";
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Driver install failed: {ex.Message}");
+            StatusText  = "Install failed";
+            StatusColor = "#F85149";
         }
         finally
         {
@@ -204,6 +216,10 @@ public class DriverViewModel : BaseViewModel
                 await Task.Delay(1500);
                 await CheckDriverAsync();
             }
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Driver removal failed: {ex.Message}");
         }
         finally
         {

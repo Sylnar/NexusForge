@@ -50,7 +50,17 @@ foreach ($d in $devs) {
     Write-Output '---'
 }
 ";
-        var (_, output, _) = await RunPsAsync(script);
+        var (_, output, psError) = await RunPsAsync(script);
+
+        // No output at all means the check itself failed (timeout, PowerShell
+        // blocked), not that the driver is missing.
+        if (string.IsNullOrWhiteSpace(output))
+        {
+            _log.Warn("FTDI driver check failed: no response from PowerShell.");
+            if (!string.IsNullOrWhiteSpace(psError)) _log.Warn(psError.Trim());
+            info.Status = "Check failed";
+            return info;
+        }
 
         if (output.Contains("NOT_FOUND"))
         {
@@ -315,8 +325,10 @@ foreach ($d in $devs) {
         proc.ErrorDataReceived += (_, e) => { if (e.Data != null) sbe.AppendLine(e.Data); };
         proc.Start(); proc.BeginOutputReadLine(); proc.BeginErrorReadLine();
         var exited = await Task.Run(() => proc.WaitForExit(timeoutMs));
-        if (!exited) { try { proc.Kill(true); } catch { } }
+        if (!exited) { try { proc.Kill(true); proc.WaitForExit(5000); } catch { } }
         try { File.Delete(sf); } catch { }
-        return (proc.ExitCode, sb.ToString(), sbe.ToString());
+        int exitCode = -1;
+        try { if (proc.HasExited) exitCode = proc.ExitCode; } catch { }
+        return (exitCode, sb.ToString(), sbe.ToString());
     }
 }
