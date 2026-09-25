@@ -4,10 +4,10 @@
              x:Class="Sylnar.Views.Controls.DmaTestPanel"
              x:DataType="vm:DmaTestViewModel">
 
-  <StackPanel Spacing="6">
+  <StackPanel Spacing="10">
 
     <!-- ═══ FTDI DRIVER MANAGEMENT ═══ -->
-    <Border Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8">
+    <Border Classes="card" Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8">
       <StackPanel>
 
         <!-- Header -->
@@ -99,7 +99,7 @@
     </Border>
 
     <!-- ═══ MEMORY MAP GENERATOR ═══ -->
-    <Border Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8">
+    <Border Classes="card" Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8">
       <StackPanel>
 
         <!-- Header -->
@@ -180,7 +180,7 @@
     </Border>
 
     <!-- ═══ DMA SPEED TEST ═══ -->
-    <Border Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8">
+    <Border Classes="card" Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8">
       <StackPanel>
 
         <!-- Header -->

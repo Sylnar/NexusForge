@@ -6,32 +6,61 @@
         x:Class="Sylnar.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="{x:Static h:VersionInfo.WindowTitle}"
-        Width="950" Height="960"
-        MinWidth="950" MinHeight="960"
-        MaxWidth="950" MaxHeight="960"
-        CanResize="False"
+        Width="980" Height="900"
+        MinWidth="900" MinHeight="680"
         WindowStartupLocation="CenterScreen"
-        Background="#0D1117"
         Foreground="#E6EDF3">
+  <Window.Background>
+    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+      <GradientStop Color="#0F141B" Offset="0"/>
+      <GradientStop Color="#0B0F15" Offset="1"/>
+    </LinearGradientBrush>
+  </Window.Background>
+  <!-- Was a fixed 950x960 non-resizable window: taller than a 1080p laptop
+       screen at 125% scaling, so the bottom of the log was cut off. Tabs now
+       scroll, and the window can shrink to 680px high. -->
 
   <Window.Styles>
+
+    <!-- ── Shared button chrome: smooth hover/press colour changes ── -->
+    <Style Selector="Button /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background"  Duration="0:0:0.14" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.14" />
+          <BrushTransition Property="Foreground"  Duration="0:0:0.14" />
+        </Transitions>
+      </Setter>
+    </Style>
+
+    <!-- Keyboard focus ring (Tab navigation), hidden for mouse clicks -->
+    <Style Selector="Button:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush"     Value="#7FF2DA"/>
+      <Setter Property="BorderThickness" Value="1.5"/>
+    </Style>
+
+    <!-- NB: Fluent's own :pointerover/:pressed states restyle the template's
+         ContentPresenter (and flip the text to white), so hover colours must
+         target the presenter, not the Button itself. -->
 
     <!-- ── Primary button ── -->
     <Style Selector="Button.primary">
       <Setter Property="Background"      Value="#00D4AA"/>
-      <Setter Property="Foreground"      Value="#0A0D14"/>
+      <Setter Property="Foreground"      Value="#06231D"/>
       <Setter Property="FontWeight"      Value="SemiBold"/>
       <Setter Property="FontSize"        Value="12"/>
-      <Setter Property="CornerRadius"    Value="6"/>
+      <Setter Property="CornerRadius"    Value="7"/>
       <Setter Property="Padding"         Value="16,7"/>
       <Setter Property="Cursor"          Value="Hand"/>
       <Setter Property="BorderThickness" Value="0"/>
     </Style>
-    <Style Selector="Button.primary:pointerover">
-      <Setter Property="Opacity" Value="0.85"/>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1FE3BC"/>
+      <Setter Property="Foreground" Value="#06231D"/>
     </Style>
-    <Style Selector="Button.primary:pressed">
-      <Setter Property="Opacity" Value="0.70"/>
+    <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#00B894"/>
+      <Setter Property="Foreground" Value="#06231D"/>
     </Style>
 
     <!-- ── Teal outline ── -->
@@ -40,13 +69,20 @@
       <Setter Property="Foreground"      Value="#00D4AA"/>
       <Setter Property="BorderBrush"     Value="#00D4AA"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius"    Value="6"/>
+      <Setter Property="CornerRadius"    Value="7"/>
       <Setter Property="Padding"         Value="12,5"/>
       <Setter Property="FontSize"        Value="12"/>
       <Setter Property="Cursor"          Value="Hand"/>
     </Style>
-    <Style Selector="Button.teal-outline:pointerover">
-      <Setter Property="Opacity" Value="0.75"/>
+    <Style Selector="Button.teal-outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background"  Value="#1A00D4AA"/>
+      <Setter Property="BorderBrush" Value="#1FE3BC"/>
+      <Setter Property="Foreground"  Value="#1FE3BC"/>
+    </Style>
+    <Style Selector="Button.teal-outline:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background"  Value="#2E00D4AA"/>
+      <Setter Property="BorderBrush" Value="#00D4AA"/>
+      <Setter Property="Foreground"  Value="#00D4AA"/>
     </Style>
 
     <!-- ── Danger outline ── -->
@@ -55,34 +91,52 @@
       <Setter Property="Foreground"      Value="#F85149"/>
       <Setter Property="BorderBrush"     Value="#F85149"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius"    Value="6"/>
+      <Setter Property="CornerRadius"    Value="7"/>
       <Setter Property="Padding"         Value="16,7"/>
       <Setter Property="FontWeight"      Value="SemiBold"/>
       <Setter Property="FontSize"        Value="12"/>
       <Setter Property="Cursor"          Value="Hand"/>
     </Style>
-    <Style Selector="Button.danger-outline:pointerover">
-      <Setter Property="Opacity" Value="0.75"/>
+    <Style Selector="Button.danger-outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background"  Value="#1AF85149"/>
+      <Setter Property="BorderBrush" Value="#FF7B72"/>
+      <Setter Property="Foreground"  Value="#FF7B72"/>
+    </Style>
+    <Style Selector="Button.danger-outline:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background"  Value="#2EF85149"/>
+      <Setter Property="BorderBrush" Value="#F85149"/>
+      <Setter Property="Foreground"  Value="#F85149"/>
     </Style>
 
     <!-- ── Ghost ── -->
     <Style Selector="Button.ghost">
       <Setter Property="Background"      Value="Transparent"/>
-      <Setter Property="Foreground"      Value="#6E7681"/>
+      <Setter Property="Foreground"      Value="#8B949E"/>
       <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="CornerRadius"    Value="5"/>
-      <Setter Property="Padding"         Value="8,4"/>
+      <Setter Property="CornerRadius"    Value="6"/>
+      <Setter Property="Padding"         Value="9,4"/>
       <Setter Property="FontSize"        Value="11"/>
       <Setter Property="Cursor"          Value="Hand"/>
     </Style>
-    <Style Selector="Button.ghost:pointerover">
-      <Setter Property="Opacity" Value="0.70"/>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#21262D"/>
+      <Setter Property="Foreground" Value="#E6EDF3"/>
+    </Style>
+    <Style Selector="Button.ghost:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#30363D"/>
+      <Setter Property="Foreground" Value="#E6EDF3"/>
     </Style>
 
     <!-- ── Disabled ── -->
     <Style Selector="Button:disabled">
-      <Setter Property="Opacity" Value="0.32"/>
+      <Setter Property="Opacity" Value="0.35"/>
       <Setter Property="Cursor"  Value="Arrow"/>
+    </Style>
+
+    <!-- ── Cards: every section panel is a #161B22 border; lift it off the
+         background with a soft shadow ── -->
+    <Style Selector="Border.card">
+      <Setter Property="BoxShadow" Value="0 4 18 0 #33000000"/>
     </Style>
 
     <!-- ── CheckBox ── -->
@@ -91,13 +145,18 @@
       <Setter Property="FontSize"   Value="12"/>
     </Style>
 
-    <!-- ── ProgressBar ── -->
+    <!-- ── ProgressBar: teal-to-cyan fill ── -->
     <Style Selector="ProgressBar">
-      <Setter Property="Foreground"   Value="#00D4AA"/>
       <Setter Property="Background"   Value="#21262D"/>
-      <Setter Property="Height"       Value="6"/>
-      <Setter Property="CornerRadius" Value="3"/>
-      <Setter Property="MinHeight"    Value="6"/>
+      <Setter Property="Height"       Value="8"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="MinHeight"    Value="8"/>
+      <Setter Property="Foreground">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+          <GradientStop Color="#00D4AA" Offset="0"/>
+          <GradientStop Color="#38BDF8" Offset="1"/>
+        </LinearGradientBrush>
+      </Setter>
     </Style>
 
     <!-- ── TabControl chrome ── -->
@@ -105,23 +164,52 @@
       <Setter Property="Background"   Value="Transparent"/>
       <Setter Property="Padding"      Value="0"/>
     </Style>
+    <Style Selector="TabControl /template/ ItemsPresenter#PART_ItemsPresenter">
+      <Setter Property="Margin" Value="12,6,12,0"/>
+    </Style>
     <Style Selector="TabItem">
       <Setter Property="Background"   Value="Transparent"/>
       <Setter Property="Foreground"   Value="#6E7681"/>
       <Setter Property="FontSize"     Value="12"/>
       <Setter Property="FontWeight"   Value="SemiBold"/>
-      <Setter Property="Padding"      Value="16,10"/>
+      <Setter Property="Padding"      Value="14,10"/>
+      <Setter Property="MinHeight"    Value="40"/>
       <Setter Property="Cursor"       Value="Hand"/>
-      <Setter Property="Margin"       Value="0"/>
-      <Setter Property="BorderThickness" Value="0,0,0,2"/>
-      <Setter Property="BorderBrush"     Value="Transparent"/>
+      <Setter Property="Margin"       Value="0,0,2,0"/>
+      <Setter Property="CornerRadius" Value="7,7,0,0"/>
     </Style>
-    <Style Selector="TabItem:selected">
-      <Setter Property="Foreground"   Value="#E6EDF3"/>
-      <Setter Property="BorderBrush"  Value="#00D4AA"/>
+    <Style Selector="TabItem:pointerover /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="#161B22"/>
     </Style>
     <Style Selector="TabItem:pointerover">
       <Setter Property="Foreground"   Value="#C9D1D9"/>
+    </Style>
+    <Style Selector="TabItem:selected">
+      <Setter Property="Foreground"   Value="#E6EDF3"/>
+    </Style>
+    <Style Selector="TabItem:selected /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="#161B22"/>
+    </Style>
+
+    <!-- ── Text inputs: stay dark on hover/focus (Fluent lightens them),
+         teal border when focused ── -->
+    <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background"  Value="#0D1117"/>
+      <Setter Property="BorderBrush" Value="#484F58"/>
+    </Style>
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background"      Value="#0D1117"/>
+      <Setter Property="BorderBrush"     Value="#00D4AA"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="TextBox:pointerover">
+      <Setter Property="Foreground" Value="#E6EDF3"/>
+    </Style>
+
+    <!-- ── Slim scrollbars for the scrolling tabs ── -->
+    <Style Selector="ScrollViewer.tab-scroll">
+      <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+      <Setter Property="VerticalScrollBarVisibility"   Value="Auto"/>
     </Style>
 
   </Window.Styles>
@@ -166,20 +254,24 @@
     <TabControl Background="Transparent" Margin="0">
 
       <!-- ═══ Tab 1: BOARD & FLASH ═══ -->
-      <TabItem Header="  BOARD &amp; FLASH  ">
+      <TabItem Header="BOARD &amp; FLASH">
+        <ScrollViewer Classes="tab-scroll">
         <StackPanel>
           <ctrl:BoardInfoPanel DataContext="{Binding BoardInfo}" Margin="12,8,12,0" />
-          <ctrl:FlashPanel     DataContext="{Binding Flash}"     Margin="12,6,12,6"  />
+          <ctrl:FlashPanel     DataContext="{Binding Flash}"     Margin="12,10,12,8"  />
         </StackPanel>
+        </ScrollViewer>
       </TabItem>
 
       <!-- ═══ Tab 2: DRIVER MANAGER ═══ -->
-      <TabItem Header="  DRIVER MANAGER  ">
+      <TabItem Header="DRIVER MANAGER">
+        <ScrollViewer Classes="tab-scroll">
         <StackPanel>
           <ctrl:DriverPanel DataContext="{Binding Driver}" Margin="12,8,12,6" />
 
             <!-- Info card -->
-            <Border Background="#161B22"
+            <Border Classes="card"
+                    Background="#161B22"
                     BorderBrush="#21262D"
                     BorderThickness="1"
                     CornerRadius="8"
@@ -201,9 +293,10 @@
                     Without it, OpenOCD cannot access the JTAG interface.
                   </TextBlock>
                   <TextBlock Foreground="#8B949E" FontSize="12" TextWrapping="Wrap">
-                    Install: First tries Windows Update (pnputil /scan-devices), then attempts
-                    to download the WCH installer directly. If all else fails, opens the WCH
-                    product page for manual download.
+                    Install: Sylnar adds the bundled, signed WCH driver to the Windows
+                    driver store (pnputil /add-driver) and rescans devices so it binds
+                    immediately. Administrator rights are required. If Windows asks for a
+                    restart, the driver finishes installing after the reboot.
                   </TextBlock>
                   <Border Background="#1C2333" CornerRadius="6" Padding="12,8" Margin="0,4,0,0">
                     <StackPanel Spacing="4">
@@ -222,15 +315,18 @@
               </StackPanel>
             </Border>
           </StackPanel>
+        </ScrollViewer>
       </TabItem>
 
-      <!-- ═══ Tab 4: BAR PROBE ═══ -->
-      <TabItem Header="  BAR PROBE  ">
+      <!-- ═══ Tab 3: BAR PROBE ═══ -->
+      <TabItem Header="BAR PROBE">
+        <ScrollViewer Classes="tab-scroll">
         <StackPanel>
           <ctrl:BarProbePanel DataContext="{Binding BarProbe}" Margin="12,8,12,6" />
 
           <!-- Info card -->
-          <Border Background="#161B22"
+          <Border Classes="card"
+                  Background="#161B22"
                   BorderBrush="#21262D"
                   BorderThickness="1"
                   CornerRadius="8"
@@ -275,16 +371,18 @@
             </StackPanel>
           </Border>
         </StackPanel>
+        </ScrollViewer>
       </TabItem>
 
-      <!-- ═══ Tab 3: DMA TESTING ═══ -->
-      <TabItem Header="  DMA TESTING  ">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <!-- ═══ Tab 4: DMA TESTING ═══ -->
+      <TabItem Header="DMA TESTING">
+        <ScrollViewer Classes="tab-scroll">
           <StackPanel>
             <ctrl:DmaTestPanel DataContext="{Binding DmaTest}" Margin="12,8,12,6" />
 
           <!-- Info card -->
-          <Border Background="#161B22"
+          <Border Classes="card"
+                  Background="#161B22"
                   BorderBrush="#21262D"
                   BorderThickness="1"
                   CornerRadius="8"

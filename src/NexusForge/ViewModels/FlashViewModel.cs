@@ -32,7 +32,12 @@ public class FlashViewModel : BaseViewModel
         set
         {
             if (SetProperty(ref _firmwarePath, value))
+            {
+                // A new file makes the previous run's result banner stale.
+                IsFlashComplete = false;
+                HasFlashError = false;
                 ValidateFile();
+            }
         }
     }
 
@@ -106,6 +111,12 @@ public class FlashViewModel : BaseViewModel
         get => _hasFlashError;
         set => SetProperty(ref _hasFlashError, value);
     }
+
+    /// <summary>What to do after a successful flash; differs for SPI (.bin) vs SRAM (.bit).</summary>
+    public string FlashSuccessMessage =>
+        FirmwarePath.EndsWith(".bit", StringComparison.OrdinalIgnoreCase)
+            ? "Bitstream loaded into the FPGA. It is active now and is lost on power-off."
+            : "Firmware written to SPI flash. Fully power-cycle the target PC to load it.";
 
     public string FlashErrorMessage
     {
@@ -220,6 +231,7 @@ public class FlashViewModel : BaseViewModel
 
             if (result.Success)
             {
+                OnPropertyChanged(nameof(FlashSuccessMessage));
                 IsFlashComplete = true;
                 FlashPercentage = 100;
                 FlashStage = "Complete";

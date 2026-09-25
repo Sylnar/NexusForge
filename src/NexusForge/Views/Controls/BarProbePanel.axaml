@@ -4,10 +4,10 @@
              x:Class="Sylnar.Views.Controls.BarProbePanel"
              x:DataType="vm:BarProbeViewModel">
 
-  <StackPanel Spacing="6">
+  <StackPanel Spacing="10">
 
     <!-- ═══ INPUTS ═══ -->
-    <Border Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8">
+    <Border Classes="card" Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8">
       <StackPanel>
 
         <!-- Header -->
@@ -103,7 +103,7 @@
     </Border>
 
     <!-- ═══ PCIe DEVICE LIST ═══ -->
-    <Border Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8"
+    <Border Classes="card" Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8"
             IsVisible="{Binding DeviceList.Count}">
       <StackPanel>
         <Border BorderBrush="#21262D" BorderThickness="0,0,0,1" Padding="16,10">
@@ -131,7 +131,7 @@
     </Border>
 
     <!-- ═══ LAST READ OUTPUT ═══ -->
-    <Border Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8">
+    <Border Classes="card" Background="#161B22" BorderBrush="#21262D" BorderThickness="1" CornerRadius="8">
       <StackPanel>
         <Border BorderBrush="#21262D" BorderThickness="0,0,0,1" Padding="16,10">
           <StackPanel Orientation="Horizontal" Spacing="8">

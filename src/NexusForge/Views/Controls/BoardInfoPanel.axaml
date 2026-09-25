@@ -4,7 +4,8 @@
              x:Class="Sylnar.Views.Controls.BoardInfoPanel"
              x:DataType="vm:BoardInfoViewModel">
 
-  <Border Background="#161B22"
+  <Border Classes="card"
+          Background="#161B22"
           BorderBrush="#21262D"
           BorderThickness="1"
           CornerRadius="8">

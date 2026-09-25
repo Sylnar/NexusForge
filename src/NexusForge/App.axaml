@@ -6,16 +6,19 @@
     <FluentTheme />
   </Application.Styles>
   <Application.Resources>
-    <SolidColorBrush x:Key="BackgroundPrimary">#1A1A2E</SolidColorBrush>
-    <SolidColorBrush x:Key="BackgroundSecondary">#16213E</SolidColorBrush>
-    <SolidColorBrush x:Key="BackgroundTertiary">#0F3460</SolidColorBrush>
-    <SolidColorBrush x:Key="AccentPrimary">#00D4AA</SolidColorBrush>
-    <SolidColorBrush x:Key="AccentHover">#00F5C8</SolidColorBrush>
-    <SolidColorBrush x:Key="TextPrimary">#FFFFFF</SolidColorBrush>
-    <SolidColorBrush x:Key="TextSecondary">#B0B0C0</SolidColorBrush>
-    <SolidColorBrush x:Key="SuccessBrush">#00E676</SolidColorBrush>
-    <SolidColorBrush x:Key="ErrorBrush">#FF5252</SolidColorBrush>
-    <SolidColorBrush x:Key="WarningBrush">#FFC107</SolidColorBrush>
-    <SolidColorBrush x:Key="DisabledBrush">#4A4A5E</SolidColorBrush>
+    <!-- Brand accent. Overriding the Fluent accent keys makes every stock
+         control (focus rings, tab pipe, checkboxes, text-box underline,
+         selection) use Sylnar teal instead of the Windows accent colour. -->
+    <Color x:Key="SystemAccentColor">#00D4AA</Color>
+    <Color x:Key="SystemAccentColorLight1">#1FE3BC</Color>
+    <Color x:Key="SystemAccentColorLight2">#4BEBCB</Color>
+    <Color x:Key="SystemAccentColorLight3">#7FF2DA</Color>
+    <Color x:Key="SystemAccentColorDark1">#00B894</Color>
+    <Color x:Key="SystemAccentColorDark2">#009C7E</Color>
+    <Color x:Key="SystemAccentColorDark3">#007F67</Color>
+    <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="#00D4AA" />
+
+    <!-- Text selection in log / inputs -->
+    <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="#5500D4AA" />
   </Application.Resources>
 </Application>

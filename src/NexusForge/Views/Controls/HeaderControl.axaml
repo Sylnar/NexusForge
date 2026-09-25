@@ -5,59 +5,76 @@
              x:Class="Sylnar.Views.Controls.HeaderControl"
              x:DataType="vm:MainViewModel">
 
-  <Border Background="#161B22"
-          BorderBrush="#21262D"
-          BorderThickness="0,0,0,1">
-    <Grid ColumnDefinitions="Auto,*,Auto" Margin="20,14,20,14">
+  <Grid RowDefinitions="*,Auto">
 
-      <!-- Logo badge -->
-      <Border Grid.Column="0"
-              Background="#00D4AA"
-              CornerRadius="8"
-              Width="40" Height="40"
-              VerticalAlignment="Center"
-              Margin="0,0,14,0">
-        <TextBlock Text="S" Foreground="#0A0D14"
-                   FontSize="20" FontWeight="Bold"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center" />
-      </Border>
+    <Border Grid.Row="0">
+      <Border.Background>
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+          <GradientStop Color="#18202B" Offset="0"/>
+          <GradientStop Color="#141A22" Offset="0.55"/>
+          <GradientStop Color="#10231F" Offset="1"/>
+        </LinearGradientBrush>
+      </Border.Background>
 
-      <!-- Title + tagline -->
-      <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-        <TextBlock Text="SYLNAR"
-                   FontSize="19" FontWeight="Bold"
-                   Foreground="#E6EDF3" />
-        <TextBlock Text="DMA FPGA Management Tool"
-                   FontSize="11" Foreground="#6E7681" />
-      </StackPanel>
+      <Grid ColumnDefinitions="Auto,*,Auto" Margin="22,14,22,14">
 
-      <!-- Version badge -->
-      <Border Grid.Column="2"
-              Background="#21262D"
-              BorderBrush="#30363D"
-              BorderThickness="1"
-              CornerRadius="20"
-              Padding="12,5"
-              VerticalAlignment="Center">
-        <StackPanel Orientation="Horizontal" Spacing="5">
-          <Ellipse Width="6" Height="6" Fill="#3FB950" VerticalAlignment="Center"/>
-          <!-- v1.1.25: was hardcoded "v1.1.25"; now bound via x:Static to
-               VersionInfo.WithV so a csproj Version bump auto-propagates here
-               with no XAML edit. -->
-          <TextBlock Text="{x:Static h:VersionInfo.WithV}" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" />
+        <!-- Logo badge (matches the splash screen mark) -->
+        <Border Grid.Column="0"
+                CornerRadius="11"
+                Width="42" Height="42"
+                VerticalAlignment="Center"
+                Margin="0,0,14,0"
+                BoxShadow="0 3 16 0 #4000D4AA">
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+              <GradientStop Color="#1FE3BC" Offset="0"/>
+              <GradientStop Color="#00A88A" Offset="1"/>
+            </LinearGradientBrush>
+          </Border.Background>
+          <TextBlock Text="S" Foreground="#06231D"
+                     FontSize="21" FontWeight="Bold"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+        </Border>
+
+        <!-- Title + tagline -->
+        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+          <TextBlock Text="SYLNAR"
+                     FontSize="19" FontWeight="Bold"
+                     Foreground="#F0F6FC" />
+          <TextBlock Text="FPGA DMA board management"
+                     FontSize="11" Foreground="#7D8590" />
         </StackPanel>
-      </Border>
 
-    </Grid>
+        <!-- Version badge -->
+        <Border Grid.Column="2"
+                Background="#1A00D4AA"
+                BorderBrush="#4000D4AA"
+                BorderThickness="1"
+                CornerRadius="20"
+                Padding="12,5"
+                VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Ellipse Width="6" Height="6" Fill="#00D4AA" VerticalAlignment="Center"/>
+            <!-- Bound via x:Static to VersionInfo.WithV so a csproj Version bump
+                 propagates here with no XAML edit. -->
+            <TextBlock Text="{x:Static h:VersionInfo.WithV}" Foreground="#7FF2DA" FontSize="11" FontWeight="SemiBold" />
+          </StackPanel>
+        </Border>
 
-    <!-- Teal accent line at bottom -->
-    <Border.Background>
-      <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-        <GradientStop Color="#1C2333" Offset="0"/>
-        <GradientStop Color="#161B22" Offset="1"/>
-      </LinearGradientBrush>
-    </Border.Background>
+      </Grid>
+    </Border>
 
-  </Border>
+    <!-- Accent line: fades teal -> blue -> transparent -->
+    <Border Grid.Row="1" Height="2">
+      <Border.Background>
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+          <GradientStop Color="#00D4AA" Offset="0"/>
+          <GradientStop Color="#38BDF8" Offset="0.45"/>
+          <GradientStop Color="#0038BDF8" Offset="1"/>
+        </LinearGradientBrush>
+      </Border.Background>
+    </Border>
+
+  </Grid>
 </UserControl>

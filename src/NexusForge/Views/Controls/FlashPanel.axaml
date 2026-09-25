@@ -4,7 +4,8 @@
              x:Class="Sylnar.Views.Controls.FlashPanel"
              x:DataType="vm:FlashViewModel">
 
-  <Border Background="#161B22"
+  <Border Classes="card"
+          Background="#161B22"
           BorderBrush="#21262D"
           BorderThickness="1"
           CornerRadius="8">
@@ -34,7 +35,8 @@
       </Border>
 
       <!-- ── File info row ── -->
-      <Border Padding="16,12,16,0">
+      <Border Margin="16,12,16,0" Padding="12,9"
+              Background="#0D1117" BorderBrush="#21262D" BorderThickness="1" CornerRadius="7">
         <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
 
           <!-- Filename label -->
@@ -100,6 +102,31 @@
           </StackPanel>
 
         </StackPanel>
+      </Border>
+
+      <!-- ── Result banner: success / failure after a flash ── -->
+      <Border Margin="16,12,16,0" Padding="12,9" CornerRadius="7"
+              Background="#143FB950" BorderBrush="#553FB950" BorderThickness="1"
+              IsVisible="{Binding IsFlashComplete}">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="✓" Foreground="#3FB950" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding FlashSuccessMessage}"
+                     Foreground="#C9D1D9" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+      <Border Margin="16,12,16,0" Padding="12,9" CornerRadius="7"
+              Background="#14F85149" BorderBrush="#55F85149" BorderThickness="1"
+              IsVisible="{Binding HasFlashError}">
+        <Grid ColumnDefinitions="Auto,*">
+          <TextBlock Text="!" Foreground="#F85149" FontSize="13" FontWeight="Bold"
+                     VerticalAlignment="Top" Margin="2,0,10,0"/>
+          <StackPanel Grid.Column="1" Spacing="2">
+            <TextBlock Text="{Binding FlashErrorMessage}"
+                       Foreground="#FFA198" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <TextBlock Text="See the status log below for the cause and what to try."
+                       Foreground="#8B949E" FontSize="11" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Grid>
       </Border>
 
       <!-- ── Action buttons ── -->
