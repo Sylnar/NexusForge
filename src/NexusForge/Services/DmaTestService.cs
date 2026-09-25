@@ -206,7 +206,7 @@ public class DmaTestService
         //      env var.
         SuppressSymbolStoreEula();
 
-        _dmaDir = Path.Combine(Path.GetTempPath(), $"nf_{Guid.NewGuid():N}");
+        _dmaDir = OwnedTempDirs.Register(Path.Combine(Path.GetTempPath(), $"nf_{Guid.NewGuid():N}"));
         Directory.CreateDirectory(_dmaDir);
 
         var assembly = Assembly.GetExecutingAssembly();

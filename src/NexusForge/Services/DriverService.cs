@@ -181,7 +181,7 @@ if ($svcObj) {
     {
         _log.Info("Installing WCH CH341/CH347 driver...");
 
-        var driverDir = Path.Combine(Path.GetTempPath(), $"drv_{Guid.NewGuid():N}");
+        var driverDir = OwnedTempDirs.Register(Path.Combine(Path.GetTempPath(), $"drv_{Guid.NewGuid():N}"));
         Directory.CreateDirectory(driverDir);
 
         try

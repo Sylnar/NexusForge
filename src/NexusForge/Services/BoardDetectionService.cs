@@ -32,9 +32,9 @@ public class BoardDetectionService
             }
             catch (DllNotFoundException)
             {
-                _logService.Error("FTDI D2XX driver (ftd2xx.dll) is not installed.");
-                _logService.Warn("Windows should auto-install FTDI drivers when you plug in the board.");
-                _logService.Warn("If not, download from: https://ftdichip.com/drivers/d2xx-drivers/");
+                // Detection runs through the bundled OpenOCD + CH347, not FTDI D2XX.
+                _logService.Error("A required JTAG library could not be loaded.");
+                _logService.Warn("Install the CH347 driver from the Drivers tab, replug the USB cable, and retry.");
                 return new BoardInfo();
             }
             catch (Exception ex)

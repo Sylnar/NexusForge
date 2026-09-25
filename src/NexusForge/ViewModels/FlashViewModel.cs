@@ -84,7 +84,14 @@ public class FlashViewModel : BaseViewModel
     public bool IsFlashing
     {
         get => _isFlashing;
-        set => SetProperty(ref _isFlashing, value);
+        set
+        {
+            if (SetProperty(ref _isFlashing, value))
+            {
+                (FlashFirmwareCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (CancelFlashCommand as RelayCommand)?.NotifyCanExecuteChanged();
+            }
+        }
     }
 
     public bool IsFlashComplete
@@ -239,7 +246,9 @@ public class FlashViewModel : BaseViewModel
 
     private void CancelFlash()
     {
+        // Honoured only before the SPI erase/write starts; after that the
+        // service logs that the write will be allowed to finish.
+        _logService.Warn("Cancel requested by user.");
         _cts?.Cancel();
-        _logService.Warn("Flash operation cancelled by user");
     }
 }

@@ -7,8 +7,16 @@ namespace Sylnar.Services;
 public class LogService
 {
     private readonly ILogger<LogService> _logger;
+    // Written concurrently (OpenOCD stdout/stderr readers, DMA workers), so all
+    // access goes through _lock. Capped so a long session can't grow unbounded.
+    private const int MaxEntries = 5000;
+    private readonly object _lock = new();
     private readonly List<LogEntry> _entries = new();
-    public IReadOnlyList<LogEntry> Entries => _entries.AsReadOnly();
+
+    public IReadOnlyList<LogEntry> Entries
+    {
+        get { lock (_lock) return _entries.ToList(); }
+    }
 
     public event EventHandler<LogEntry>? LogAdded;
 
@@ -49,7 +57,12 @@ public class LogService
             Level = level,
             Message = message
         };
-        _entries.Add(entry);
+        lock (_lock)
+        {
+            _entries.Add(entry);
+            if (_entries.Count > MaxEntries)
+                _entries.RemoveRange(0, _entries.Count - MaxEntries);
+        }
         LogAdded?.Invoke(this, entry);
     }
 }

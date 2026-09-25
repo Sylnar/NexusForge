@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Sylnar.Helpers;
 using Sylnar.Models;
@@ -83,6 +84,7 @@ public class AutoUpdateService
             _logService.Info($"Update available: v{_settings.Version} -> v{remote}");
 
             string? url = null;
+            string? expectedSha256 = null;
             long expectedSize = 0;
             if (root.TryGetProperty("assets", out var assets))
             {
@@ -94,6 +96,14 @@ public class AutoUpdateService
                         url = a.GetProperty("browser_download_url").GetString();
                         if (a.TryGetProperty("size", out var szProp))
                             expectedSize = szProp.GetInt64();
+                        // GitHub publishes a "sha256:<hex>" digest for every release
+                        // asset. Size + MZ checks only catch truncation; the digest
+                        // catches corruption and a tampered asset.
+                        if (a.TryGetProperty("digest", out var dgProp) &&
+                            dgProp.ValueKind == JsonValueKind.String &&
+                            dgProp.GetString() is { } dg &&
+                            dg.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+                            expectedSha256 = dg.Substring("sha256:".Length).Trim();
                         break;
                     }
                 }
@@ -181,6 +191,25 @@ public class AutoUpdateService
                     try { File.Delete(temp); } catch { }
                     return false;
                 }
+            }
+
+            if (expectedSha256 != null)
+            {
+                string actualSha256;
+                await using (var hs = File.OpenRead(temp))
+                    actualSha256 = Convert.ToHexString(await SHA256.HashDataAsync(hs));
+                if (!actualSha256.Equals(expectedSha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logService.Warn("Update aborted: downloaded file failed SHA-256 verification.");
+                    CrashLogger.WriteLine($"AutoUpdate SHA-256 mismatch: got {actualSha256}, expected {expectedSha256}");
+                    try { File.Delete(temp); } catch { }
+                    return false;
+                }
+                CrashLogger.WriteLine($"AutoUpdate SHA-256 verified: {actualSha256}");
+            }
+            else
+            {
+                CrashLogger.WriteLine("AutoUpdate: release asset has no digest; SHA-256 check skipped.");
             }
 
             var exe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName;

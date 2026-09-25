@@ -145,5 +145,5 @@ No manual downloads needed after initial install.
 ---
 
 <p align="center">
-  <sub>Sylnar v1.0.0 — Built for the community</sub>
+  <sub>Sylnar — Built for the community</sub>
 </p>

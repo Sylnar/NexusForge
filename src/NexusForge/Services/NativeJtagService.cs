@@ -24,7 +24,7 @@ public class NativeJtagService : IDisposable
         if (_extracted && _toolDir != null && Directory.Exists(_toolDir))
             return;
 
-        _toolDir = Path.Combine(Path.GetTempPath(), $"nf_{Guid.NewGuid():N}");
+        _toolDir = OwnedTempDirs.Register(Path.Combine(Path.GetTempPath(), $"nf_{Guid.NewGuid():N}"));
         Directory.CreateDirectory(_toolDir);
 
         var assembly = Assembly.GetExecutingAssembly();
@@ -40,7 +40,10 @@ public class NativeJtagService : IDisposable
         foreach (var fileName in resources)
         {
             var destPath = Path.Combine(_toolDir, fileName);
-            ResourceCrypto.ExtractResource(assembly, fileName, destPath);
+            // A missing resource used to be ignored here and surfaced much later
+            // as a confusing OpenOCD "file not found" / flash failure.
+            if (!ResourceCrypto.ExtractResource(assembly, fileName, destPath))
+                throw new FileNotFoundException($"Embedded JTAG tool is missing from this build: {fileName}", fileName);
         }
 
         _extracted = true;
@@ -197,7 +200,11 @@ public class NativeJtagService : IDisposable
         boardInfo.IsDetected = true;
         boardInfo.DeviceName = deviceName;
         boardInfo.IdCode = idcodeHex;
-        boardInfo.Package = _settings.FpgaPart;
+        // The package is not readable over JTAG. Only show the configured part
+        // when the detected die matches it, instead of labelling every board
+        // (e.g. a 35T) with the 75T package.
+        boardInfo.Package = _settings.FpgaPart.StartsWith(
+            deviceName.Split(' ')[0], StringComparison.OrdinalIgnoreCase) ? _settings.FpgaPart : "—";
         boardInfo.JtagCable = "WCH CH347 (USB JTAG)";
         boardInfo.DetectedAt = DateTime.Now;
 
@@ -272,6 +279,18 @@ public class NativeJtagService : IDisposable
             _logService.Error($"Unsupported file type: {ext}. Use .bit or .bin files.");
             return new FlashResult { Success = false, ErrorMessage = $"Unsupported: {ext}" };
         }
+
+        // The path is embedded in a Tcl word ({...}) inside a double-quoted -c
+        // argument; these characters would break out of either and corrupt the
+        // OpenOCD command line.
+        if (firmwarePath.IndexOfAny(new[] { '{', '}', '"' }) >= 0)
+        {
+            const string msg = "Firmware path contains { } or \" characters. Rename the file or move it to a simpler folder (e.g. C:\\Firmware).";
+            _logService.Error(msg);
+            return new FlashResult { Success = false, ErrorMessage = msg };
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         string firmwareOcd = firmwarePath.Replace("\\", "/");
 
@@ -484,10 +503,15 @@ if ($dev) {{
         proc.BeginErrorReadLine();
 
         var exited = await Task.Run(() => proc.WaitForExit(timeoutMs));
-        if (!exited) { try { proc.Kill(true); } catch { } }
+        if (!exited)
+        {
+            try { proc.Kill(true); proc.WaitForExit(5000); } catch { }
+        }
 
         try { File.Delete(scriptFile); } catch { }
-        return (proc.ExitCode, sb.ToString(), sbe.ToString());
+        int exitCode = -1;
+        try { if (proc.HasExited) exitCode = proc.ExitCode; } catch { }
+        return (exitCode, sb.ToString(), sbe.ToString());
     }
 
     private FlashResult FlashSpiWithProgress(
@@ -567,6 +591,10 @@ if ($dev) {{
         long pagesWritten = 0;
         DateTime lastWriteUpdate = DateTime.MinValue;
 
+        // Last safe point to cancel: once the programmer starts erasing, killing
+        // it leaves the board with a half-written (unbootable) flash.
+        ct.ThrowIfCancellationRequested();
+
         using var process = new Process { StartInfo = psi };
         try { process.Start(); }
         catch (Exception ex)
@@ -575,7 +603,16 @@ if ($dev) {{
             return new FlashResult { Success = false, ErrorMessage = "Engine start failed", Duration = sw.Elapsed };
         }
 
+        using var cancelNotice = ct.Register(() => _logService.Warn(
+            "Cancel ignored: the SPI flash is being erased/written. Interrupting now would leave the board unbootable, so the write will finish."));
+
+        var lineLock = new object();
         void ProcessLine(string line)
+        {
+            lock (lineLock) ProcessLineCore(line);
+        }
+
+        void ProcessLineCore(string line)
         {
             allOutput.AppendLine(line);
             var t = line.Trim();

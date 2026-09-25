@@ -94,6 +94,12 @@ public partial class MainWindow : Window
             var tempDir = Path.GetTempPath().TrimEnd('\\');
             var batPath = Path.Combine(tempDir, $"nf_cleanup_{pid}.bat");
 
+            // Delete only the folders this process created (anything still locked
+            // after service disposal), never a %TEMP% wildcard.
+            var rdLines = string.Join("\r\n", Helpers.OwnedTempDirs.Snapshot()
+                .Where(Directory.Exists)
+                .Select(d => $"rd /s /q \"{d}\" 2>nul"));
+
             var bat = $"""
                 @echo off
                 :wait
@@ -103,8 +109,7 @@ public partial class MainWindow : Window
                     goto :wait
                 )
                 ping -n 2 127.0.0.1 >nul
-                for /d %%d in ("{tempDir}\nf_*") do rd /s /q "%%d" 2>nul
-                for /d %%d in ("{tempDir}\drv_*") do rd /s /q "%%d" 2>nul
+                {rdLines}
                 del /f /q "{batPath}" 2>nul
                 """;
 

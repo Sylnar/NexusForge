@@ -156,7 +156,7 @@ foreach ($d in $devs) {
     {
         _log.Info("Installing FTDI FT601 WinUSB SuperSpeed driver...");
 
-        var driverDir = Path.Combine(Path.GetTempPath(), $"drv_{Guid.NewGuid():N}");
+        var driverDir = OwnedTempDirs.Register(Path.Combine(Path.GetTempPath(), $"drv_{Guid.NewGuid():N}"));
         Directory.CreateDirectory(driverDir);
 
         try

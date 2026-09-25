@@ -156,9 +156,20 @@ public class App : Application
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
             CrashLogger.MarkCleanExit();
-            CleanupTempFolders();
+            // Only our own tool dir: a sweep here would pull the tools out from
+            // under another Sylnar instance that is still running.
+            try { _services?.GetService<NativeJtagService>()?.Dispose(); } catch { }
         };
     }
+
+    // Only folders NativeJtagService creates: "nf_" + a 32-hex-digit GUID. A bare
+    // "nf_*" glob also matched unrelated folders other programs keep in %TEMP%.
+    private static readonly System.Text.RegularExpressions.Regex ToolDirName =
+        new(@"^nf_[0-9a-f]{32}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    // Leftovers from a crashed run. Skip anything recent so a second instance
+    // that is still running keeps its extracted tools.
+    private static readonly TimeSpan StaleToolDirAge = TimeSpan.FromHours(12);
 
     private static void CleanupTempFolders()
     {
@@ -167,7 +178,13 @@ public class App : Application
             var tempDir = Path.GetTempPath();
             foreach (var dir in Directory.GetDirectories(tempDir, "nf_*"))
             {
-                try { Directory.Delete(dir, true); } catch { }
+                try
+                {
+                    if (!ToolDirName.IsMatch(Path.GetFileName(dir))) continue;
+                    if (DateTime.UtcNow - Directory.GetCreationTimeUtc(dir) < StaleToolDirAge) continue;
+                    Directory.Delete(dir, true);
+                }
+                catch { }
             }
         }
         catch { }
