@@ -192,37 +192,16 @@ foreach ($d in $devs) {
             var infPath = Path.Combine(driverDir, "FTD3XXWU.Inf");
             _log.Info("Adding driver to Windows...");
 
-            var proc = Process.Start(new ProcessStartInfo
-            {
-                FileName               = "pnputil.exe",
-                Arguments              = $"/add-driver \"{infPath}\" /install",
-                UseShellExecute        = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                CreateNoWindow         = true
-            });
-
-            if (proc != null)
-            {
-                await proc.StandardOutput.ReadToEndAsync();
-                await proc.WaitForExitAsync();
-
-                if (proc.ExitCode == 0 || proc.ExitCode == 259)
-                    _log.Info("Driver added to store.");
-                else
-                    _log.Warn($"pnputil returned code {proc.ExitCode} (may already exist).");
-            }
+            var (addCode, _) = await PnpUtil.RunAsync($"/add-driver \"{infPath}\" /install");
+            if (addCode == PnpUtil.RebootRequired)
+                _log.Warn("Driver added. Windows needs a restart to finish installing it.");
+            else if (PnpUtil.IsSuccess(addCode))
+                _log.Info("Driver added to store.");
+            else
+                _log.Warn($"Adding the driver failed (pnputil code {addCode}). Make sure Sylnar is running as Administrator.");
 
             _log.Info("Binding driver to hardware...");
-            var scanProc = Process.Start(new ProcessStartInfo
-            {
-                FileName               = "pnputil.exe",
-                Arguments              = "/scan-devices",
-                UseShellExecute        = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow         = true
-            });
-            if (scanProc != null) await scanProc.WaitForExitAsync();
+            await PnpUtil.RunAsync("/scan-devices");
 
             _log.Info("Waiting for driver to initialize...");
             await Task.Delay(3000);
@@ -278,24 +257,16 @@ foreach ($d in $devs) {
             infFileName.StartsWith("oem", StringComparison.OrdinalIgnoreCase))
         {
             _log.Info("Removing driver...");
-            var proc = Process.Start(new ProcessStartInfo
+            var (delCode, _) = await PnpUtil.RunAsync($"/delete-driver {infFileName} /uninstall /force");
+            if (delCode == PnpUtil.RebootRequired)
+                _log.Warn("Driver removed. Restart Windows to finish.");
+            if (delCode is PnpUtil.Success or PnpUtil.RebootRequired)
             {
-                FileName               = "pnputil.exe",
-                Arguments              = $"/delete-driver {infFileName} /uninstall /force",
-                UseShellExecute        = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow         = true
-            });
-            if (proc != null)
-            {
-                await proc.WaitForExitAsync();
-                if (proc.ExitCode == 0)
-                {
-                    _log.Info("FTDI driver removed.");
-                    _log.Warn("Replug the DATA USB cable, then click Check Driver.");
-                    return true;
-                }
+                _log.Info("FTDI driver removed.");
+                _log.Warn("Replug the DATA USB cable, then click Check Driver.");
+                return true;
             }
+            _log.Warn($"Driver removal failed (pnputil code {delCode}). Close programs using the device and retry as Administrator.");
         }
         else
         {

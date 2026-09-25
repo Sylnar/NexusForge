@@ -35,8 +35,12 @@ public sealed class PciEnumService
             var nameById = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             using (var pnp = new ManagementObjectSearcher(
                 "SELECT DeviceID, Name FROM Win32_PnPEntity WHERE DeviceID LIKE 'PCI%'"))
+            using (var results = pnp.Get())
             {
-                foreach (ManagementObject o in pnp.Get())
+                // Every ManagementObject wraps a COM object; dispose each one or
+                // repeated enumerations leak RCWs until the finalizer catches up.
+                foreach (ManagementObject o in results)
+                using (o)
                 {
                     var id = (o["DeviceID"] as string) ?? "";
                     var nm = (o["Name"] as string) ?? "";
@@ -48,16 +52,18 @@ public sealed class PciEnumService
             // Walk allocated memory resources, group by device
             using var alloc = new ManagementObjectSearcher(
                 "SELECT * FROM Win32_PnPAllocatedResource");
-            foreach (ManagementObject o in alloc.Get())
+            using var allocResults = alloc.Get();
+            foreach (ManagementObject o in allocResults)
+            using (o)
             {
                 var ant = (o["Antecedent"] as string) ?? "";
                 var dep = (o["Dependent"] as string) ?? "";
                 if (!ant.Contains("Win32_DeviceMemoryAddress")) continue;
                 if (!dep.Contains("PCI\\\\")) continue;
 
-                var memObj = new ManagementObject(ant);
+                using var memObj = new ManagementObject(ant);
                 memObj.Get();
-                var depObj = new ManagementObject(dep);
+                using var depObj = new ManagementObject(dep);
                 depObj.Get();
 
                 var pnpId = (depObj["PNPDeviceID"] as string) ?? (depObj["DeviceID"] as string) ?? "";

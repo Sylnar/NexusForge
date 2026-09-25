@@ -10,6 +10,7 @@ public class FlashViewModel : BaseViewModel
 {
     private readonly FlashService _flashService;
     private readonly LogService _logService;
+    private readonly AppSettings _settings;
 
     private string _firmwarePath = string.Empty;
     private string _firmwareFileName = "No file selected";
@@ -116,13 +117,19 @@ public class FlashViewModel : BaseViewModel
     public ICommand FlashFirmwareCommand { get; }
     public ICommand CancelFlashCommand { get; }
 
-    public FlashViewModel(FlashService flashService, LogService logService)
+    public FlashViewModel(FlashService flashService, LogService logService, AppSettings settings)
     {
         _flashService = flashService;
         _logService = logService;
+        _settings = settings;
         BrowseFileCommand = new AsyncRelayCommand(BrowseFileAsync);
         FlashFirmwareCommand = new AsyncRelayCommand(FlashFirmwareAsync, () => IsFileValid && !IsFlashing);
         CancelFlashCommand = new RelayCommand(CancelFlash, () => IsFlashing);
+
+        // Restore the firmware picked last session so a re-flash is one click.
+        var last = _settings.LastFirmwarePath;
+        if (!string.IsNullOrEmpty(last) && File.Exists(last))
+            FirmwarePath = last;
     }
 
     private async Task BrowseFileAsync()
@@ -174,6 +181,8 @@ public class FlashViewModel : BaseViewModel
         FileSizeText = firmware.FileSize > 0 ? $"{firmware.FileSize / 1024}KB" : "—";
         IsFileValid = firmware.IsValid;
         FileValidationMessage = firmware.ValidationMessage;
+        if (firmware.IsValid)
+            _settings.LastFirmwarePath = FirmwarePath;
     }
 
     private async Task FlashFirmwareAsync()

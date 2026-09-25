@@ -539,6 +539,13 @@ if ($dev) {{
             return new FlashResult { Success = false, ErrorMessage = "Unsupported FPGA", Duration = sw.Elapsed };
         }
 
+        if (idcode == 0x0362E093)
+        {
+            // No dedicated 15T bridge is bundled; the 35T one is used. If the
+            // bitstream's IDCODE check rejects it, the bridge load fails below.
+            _logService.Warn("XC7A15T: using the XC7A35T SPI bridge (no 15T bridge bundled). If the bridge fails to load, this board needs a 15T-specific bridge bitstream.");
+        }
+
         long firmwareSize = 0;
         try { firmwareSize = new FileInfo(firmwarePath).Length; } catch { }
         int totalSectorsEstimate = Math.Max(1, (int)((firmwareSize + 65535) / 65536));

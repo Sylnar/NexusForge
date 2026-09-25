@@ -137,6 +137,13 @@ public class DmaTestService
     private IntPtr _poolVmm = IntPtr.Zero;
     private PhysMemPage[]? _confirmedPool;
 
+    // The FPGA link supports one VMM session at a time. Speed tests, mmap
+    // generation and BarProbe (which shares this service) used to be able to run
+    // together; the second VMMDLL_Initialize then failed with a misleading
+    // "check your card" error, and the shared pool fields raced.
+    private readonly SemaphoreSlim _deviceLock = new(1, 1);
+    private readonly object _extractLock = new();
+
     private static string? _dmaDirStatic;
     private static bool _resolverRegistered;
     private static readonly object _resolverLock = new();
@@ -184,7 +191,38 @@ public class DmaTestService
     /// </summary>
     public void EnsureLibraries() => EnsureDllsExtracted();
 
+    /// <summary>
+    /// Claims exclusive use of the DMA device for one operation. Throws instead of
+    /// queueing so the user gets an immediate, accurate message.
+    /// </summary>
+    public IDisposable AcquireDevice(string operation)
+    {
+        if (!_deviceLock.Wait(0))
+            throw new InvalidOperationException(
+                $"Another DMA operation is already running. Wait for it to finish, then start the {operation} again.");
+        return new DeviceLease(_deviceLock);
+    }
+
+    private sealed class DeviceLease : IDisposable
+    {
+        private SemaphoreSlim? _sem;
+        public DeviceLease(SemaphoreSlim sem) => _sem = sem;
+        public void Dispose() => Interlocked.Exchange(ref _sem, null)?.Release();
+    }
+
+    private Task<T> RunExclusive<T>(string operation, Func<T> body, CancellationToken ct) =>
+        Task.Run(() =>
+        {
+            using var lease = AcquireDevice(operation);
+            return body();
+        }, ct);
+
     private void EnsureDllsExtracted()
+    {
+        lock (_extractLock) EnsureDllsExtractedCore();
+    }
+
+    private void EnsureDllsExtractedCore()
     {
         if (_extracted && _dmaDir != null && Directory.Exists(_dmaDir))
             return;
@@ -215,8 +253,10 @@ public class DmaTestService
         foreach (var fileName in EmbeddedDlls)
         {
             var destPath = Path.Combine(_dmaDir, fileName);
-            ResourceCrypto.ExtractResource(assembly, fileName, destPath);
-            count++;
+            if (ResourceCrypto.ExtractResource(assembly, fileName, destPath))
+                count++;
+            else
+                _log.Warn($"DMA library missing from this build: {fileName}");
         }
 
         _dmaDirStatic = _dmaDir;
@@ -313,19 +353,19 @@ public class DmaTestService
 
     public Task<DmaTestResult> RunLatencyTestAsync(
         TimeSpan duration, IProgress<FlashProgress>? progress, CancellationToken ct) =>
-        Task.Run(() => RunLatencyTest(duration, progress, ct), ct);
+        RunExclusive("latency test", () => RunLatencyTest(duration, progress, ct), ct);
 
     public Task<DmaTestResult> RunThroughputTestAsync(
         TimeSpan duration, IProgress<FlashProgress>? progress, CancellationToken ct) =>
-        Task.Run(() => RunThroughputTest(duration, progress, ct), ct);
+        RunExclusive("throughput test", () => RunThroughputTest(duration, progress, ct), ct);
 
     public Task<DmaTestResult> RunFullTestAsync(
         IProgress<FlashProgress>? progress, CancellationToken ct) =>
-        Task.Run(() => RunFullTest(progress, ct), ct);
+        RunExclusive("full test", () => RunFullTest(progress, ct), ct);
 
     public Task<DmaTestResult> RunStressTestAsync(
         TimeSpan duration, IProgress<FlashProgress>? progress, CancellationToken ct) =>
-        Task.Run(() => RunStressTest(duration, progress, ct), ct);
+        RunExclusive("stress test", () => RunStressTest(duration, progress, ct), ct);
 
     private DmaTestResult RunLatencyTest(
         TimeSpan duration, IProgress<FlashProgress>? progress, CancellationToken ct)
@@ -821,16 +861,30 @@ public class DmaTestService
             var hLC = GetLeechCoreHandle(hVMM);
             InstallAllowList(hLC, ranges);
 
-            var confirmed = new List<PhysMemPage>();
+            // Expanding every 4 KB page meant 8-16M entries (hundreds of MB) on a
+            // 32-64 GB target. Take an evenly spaced sample of at most PoolTarget
+            // pages instead; RemainingBytes stays exact, so the 16 MB-contiguous
+            // filter still sees the same proportion of qualifying pages.
+            ulong totalPages = 0;
+            foreach (var (_, cb) in ranges) totalPages += cb / PageSize;
+            if (totalPages == 0) return null;
+            ulong stride = Math.Max(1UL, totalPages / (ulong)PoolTarget);
+            ulong offset = stride > 1 ? (ulong)Random.Shared.NextInt64((long)stride) : 0;
+
+            var confirmed = new List<PhysMemPage>((int)Math.Min(totalPages, (ulong)PoolTarget + (ulong)ranges.Count));
+            ulong index = 0;
             foreach (var (pa, cb) in ranges)
             {
                 ulong regionEnd = pa + (cb & ~(PageSize - 1));
-                for (ulong p = pa; p < regionEnd; p += PageSize)
+                for (ulong p = pa; p < regionEnd; p += PageSize, index++)
+                {
+                    if (index % stride != offset) continue;
                     confirmed.Add(new PhysMemPage { PageBase = p, RemainingBytes = regionEnd - p });
+                }
             }
             if (confirmed.Count == 0) return null;
 
-            _log.Info($"Pool from cached mmap: {confirmed.Count:N0} pages, {ranges.Count} runs");
+            _log.Info($"Pool from cached mmap: {confirmed.Count:N0} sampled of {totalPages:N0} pages, {ranges.Count} runs");
             var pool = confirmed.ToArray();
             Random.Shared.Shuffle(pool);
             return pool;
@@ -848,13 +902,15 @@ public class DmaTestService
     {
         // Probe ONCE per connection; reuse the confirmed pool (and the already-
         // installed allow-list) for every subsequent call with a different filter.
-        if (_confirmedPool == null || _poolVmm != hVMM)
+        var pool = _confirmedPool;
+        if (pool == null || _poolVmm != hVMM)
         {
-            _confirmedPool = TryBuildPoolFromCachedMmap(hVMM) ?? ProbeConfirmedPool(hVMM, progress);
+            pool = TryBuildPoolFromCachedMmap(hVMM) ?? ProbeConfirmedPool(hVMM, progress);
+            _confirmedPool = pool;
             _poolVmm = hVMM;
         }
 
-        var filtered = _confirmedPool
+        var filtered = pool
             .Where(p => p.RemainingBytes >= minContiguous)
             .Take(pageCount)
             .ToArray();
@@ -1140,7 +1196,7 @@ public class DmaTestService
     public Task<MmapResult> GenerateMmapAsync(
         IProgress<FlashProgress>? progress,
         CancellationToken ct) =>
-        Task.Run(() => GenerateMmap(progress, ct), ct);
+        RunExclusive("mmap generation", () => GenerateMmap(progress, ct), ct);
 
     private MmapResult GenerateMmap(
         IProgress<FlashProgress>? progress,

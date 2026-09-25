@@ -12,9 +12,31 @@ public class AppSettings
     public string Version { get; set; } = VersionInfo.Value;
 
     public string FpgaPart { get; set; } = "xc7a75tfgg484";
-    public string SpiFlashPart { get; set; } = "is25lp128f";
-    public string ExpectedIdCode { get; set; } = "0x0362d093";
     public int FlashTimeoutSeconds { get; set; } = 300;
-    public string LastFirmwarePath { get; set; } = string.Empty;
-    public string LogLevel { get; set; } = "Info";
+
+    /// <summary>
+    /// Firmware file picked last time, restored on the Flash tab at startup.
+    /// Persisted as plain text next to the crash log (%LocalAppData%\Sylnar).
+    /// </summary>
+    public string LastFirmwarePath
+    {
+        get
+        {
+            try { return File.Exists(LastFirmwareFile) ? File.ReadAllText(LastFirmwareFile).Trim() : string.Empty; }
+            catch { return string.Empty; }
+        }
+        set
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(CrashLogger.LogDirectory)) return;
+                File.WriteAllText(LastFirmwareFile, value ?? string.Empty);
+            }
+            catch { /* remembering the path is a convenience only */ }
+        }
+    }
+
+    private static string LastFirmwareFile =>
+        Path.Combine(string.IsNullOrEmpty(CrashLogger.LogDirectory) ? Path.GetTempPath() : CrashLogger.LogDirectory,
+                     "last_firmware.txt");
 }

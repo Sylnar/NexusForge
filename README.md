@@ -40,7 +40,7 @@ Sylnar is a standalone Windows application for managing FPGA-based DMA boards. I
 
 | FPGA | Detect | Flash | Common DMA Boards |
 |------|--------|-------|-------------------|
-| XC7A15T | Yes | Yes | — |
+| XC7A15T | Yes | Experimental¹ | — |
 | XC7A35T | Yes | Yes | LeetDMA, CaptainDMA M2, CaptainDMA 4.1th, GBOX, Squirrel, ScreamerM2 |
 | XC7A50T | Yes | Yes | — |
 | XC7A75T | Yes | Yes | CaptainDMA 75T, Enigma X1 |
@@ -51,6 +51,8 @@ Sylnar is a standalone Windows application for managing FPGA-based DMA boards. I
 | XC7K410T | Yes | No | — |
 
 > All Artix-7 boards are fully supported (detect + flash). Kintex-7 boards can be detected but SPI flashing is not available.
+>
+> ¹ XC7A15T flashing uses the XC7A35T SPI bridge bitstream, since no 15T-specific bridge is bundled. It has not been verified on hardware.
 
 ---
 

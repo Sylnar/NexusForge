@@ -218,42 +218,16 @@ if ($svcObj) {
             _log.Info("Adding driver to Windows driver store...");
 
             var infPath = Path.Combine(driverDir, "CH341WDM.INF");
-            var proc = Process.Start(new ProcessStartInfo
-            {
-                FileName               = "pnputil.exe",
-                Arguments              = $"/add-driver \"{infPath}\" /install",
-                UseShellExecute        = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                CreateNoWindow         = true
-            });
-
-            if (proc != null)
-            {
-                await proc.StandardOutput.ReadToEndAsync();
-                await proc.WaitForExitAsync();
-
-                if (proc.ExitCode == 0 || proc.ExitCode == 259)
-                    _log.Info("Driver added to store successfully.");
-                else
-                    _log.Warn($"Driver store returned code {proc.ExitCode} (may already exist).");
-            }
+            var (addCode, _) = await PnpUtil.RunAsync($"/add-driver \"{infPath}\" /install");
+            if (addCode == PnpUtil.RebootRequired)
+                _log.Warn("Driver added. Windows needs a restart to finish installing it.");
+            else if (PnpUtil.IsSuccess(addCode))
+                _log.Info("Driver added to store successfully.");
+            else
+                _log.Warn($"Adding the driver failed (pnputil code {addCode}). Make sure Sylnar is running as Administrator.");
 
             _log.Info("Binding driver to hardware...");
-            var scanProc = Process.Start(new ProcessStartInfo
-            {
-                FileName               = "pnputil.exe",
-                Arguments              = "/scan-devices",
-                UseShellExecute        = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                CreateNoWindow         = true
-            });
-            if (scanProc != null)
-            {
-                await scanProc.StandardOutput.ReadToEndAsync();
-                await scanProc.WaitForExitAsync();
-            }
+            await PnpUtil.RunAsync("/scan-devices");
 
             _log.Info("Waiting for driver to initialize...");
             await Task.Delay(3000);
@@ -317,32 +291,19 @@ foreach ($d in $devs) {
 
             try
             {
-                var proc = Process.Start(new ProcessStartInfo
+                var (delCode, _) = await PnpUtil.RunAsync($"/delete-driver {infFileName} /uninstall /force");
+                if (delCode == PnpUtil.RebootRequired)
+                    _log.Warn("Driver removed. Restart Windows to finish.");
+                if (delCode is PnpUtil.Success or PnpUtil.RebootRequired)
                 {
-                    FileName               = "pnputil.exe",
-                    Arguments              = $"/delete-driver {infFileName} /uninstall /force",
-                    UseShellExecute        = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError  = true,
-                    CreateNoWindow         = true
-                });
-
-                if (proc != null)
-                {
-                    await proc.StandardOutput.ReadToEndAsync();
-                    await proc.WaitForExitAsync();
-
-                    if (proc.ExitCode == 0)
-                    {
-                        _log.Info("CH347 driver removed successfully.");
-                        _log.Warn("Replug the USB cable, then click 'Check Driver'.");
-                        await Task.Delay(1000);
-                        await CheckDriverAsync();
-                        return true;
-                    }
-
-                    _log.Warn("Driver removal may have partially succeeded. Click 'Check Driver' to verify.");
+                    _log.Info("CH347 driver removed successfully.");
+                    _log.Warn("Replug the USB cable, then click 'Check Driver'.");
+                    await Task.Delay(1000);
+                    await CheckDriverAsync();
+                    return true;
                 }
+
+                _log.Warn($"Driver removal failed (pnputil code {delCode}). Close programs using the device and retry as Administrator.");
             }
             catch (Exception ex)
             {

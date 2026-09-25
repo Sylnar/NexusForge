@@ -51,6 +51,7 @@ public sealed class BarProbeService
     /// </summary>
     public byte[] ReadFpgaConfigSpace()
     {
+        using var lease = _dmaTest.AcquireDevice("config-space read");
         IntPtr hVMM = ConnectVmm();
         try
         {
@@ -88,6 +89,7 @@ public sealed class BarProbeService
         if (length == 0 || length > 4096)
             throw new ArgumentOutOfRangeException(nameof(length), "length must be 1..4096");
 
+        using var lease = _dmaTest.AcquireDevice("BAR read");
         IntPtr hVMM = ConnectVmm();
         try
         {
@@ -117,6 +119,7 @@ public sealed class BarProbeService
         if (periodMs < 10) periodMs = 10;
         if (periodMs > 60_000) periodMs = 60_000;
 
+        using var lease = _dmaTest.AcquireDevice("BAR poll");
         IntPtr hVMM = ConnectVmm();
         try
         {
