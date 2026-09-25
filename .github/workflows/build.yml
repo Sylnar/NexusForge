@@ -11,6 +11,10 @@ on:
         description: "Publish a GitHub release (all installs auto-update to it)"
         type: boolean
         default: false
+      update_notes:
+        description: "Only refresh the notes of the existing release for this version from CHANGELOG.md"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -59,9 +63,23 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: Sylnar
+
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          TAG: v${{ needs.build.outputs.version }}
+        run: |
+          # The "## vX.Y.Z" section for this version, without its heading.
+          awk -v tag="$TAG" '
+            /^## v/ { if (found) exit; if (index($0, "## " tag) == 1) { found = 1; next } }
+            found' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "See the commit history for the changes in this release." > notes.md
+          fi
 
       - name: Create GitHub release
         env:
@@ -72,4 +90,25 @@ jobs:
           --repo "${{ github.repository }}"
           --target "${{ github.sha }}"
           --title "Sylnar $TAG"
-          --notes "See the commit history for the changes in this release."
+          --notes-file notes.md
+
+  release-notes:
+    # Rewrites the notes of an already-published release; the exe is untouched.
+    if: github.event_name == 'workflow_dispatch' && inputs.update_notes && !inputs.release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update release notes from CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ needs.build.outputs.version }}
+        run: |
+          awk -v tag="$TAG" '
+            /^## v/ { if (found) exit; if (index($0, "## " tag) == 1) { found = 1; next } }
+            found' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "No $TAG section in CHANGELOG.md"; exit 1; }
+          gh release edit "$TAG" --repo "${{ github.repository }}" --notes-file notes.md
