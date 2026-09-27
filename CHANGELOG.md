@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.1.29 — 2026-09-27
 
 ### New
 - **Compact redesign** (1100×680 by default, resizable down to 1000×560)
@@ -35,6 +35,8 @@
   erase starts), and says so next to the button.
 - Splash, update and shutdown windows use the new colours; the update
   window's logo letter is now "S".
+
+## v1.1.28 — 2026-09-25
 
 ### Important: updating from v1.1.27 or older
 Versions up to v1.1.27 check `NexusForge-dev/NexusForge` for updates, not
