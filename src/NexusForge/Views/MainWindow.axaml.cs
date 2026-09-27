@@ -23,6 +23,12 @@ public partial class MainWindow : Window
         DataContext = viewModel;
     }
 
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        (DataContext as MainViewModel)?.OnWindowOpened();
+    }
+
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
         // async void on a window event is unavoidable here (Avalonia API shape) but
@@ -139,13 +145,13 @@ public class ShutdownWindow : Window
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         SystemDecorations = SystemDecorations.None;
-        Background = new SolidColorBrush(Color.Parse("#0D1117"));
+        Background = new SolidColorBrush(Color.Parse("#0D1015"));
         Topmost = true;
 
         Content = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#161B22")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#30363D")),
+            Background = new SolidColorBrush(Color.Parse("#141920")),
+            BorderBrush = new SolidColorBrush(Color.Parse("#222A35")),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(10),
             Padding = new Thickness(24, 20),
@@ -159,7 +165,7 @@ public class ShutdownWindow : Window
                     new TextBlock
                     {
                         Text = "Shutting down...",
-                        Foreground = new SolidColorBrush(Color.Parse("#E6EDF3")),
+                        Foreground = new SolidColorBrush(Color.Parse("#E7ECF2")),
                         FontSize = 14,
                         FontWeight = FontWeight.SemiBold,
                         HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
@@ -169,15 +175,15 @@ public class ShutdownWindow : Window
                         IsIndeterminate = true,
                         Width = 200,
                         Height = 4,
-                        Foreground = new SolidColorBrush(Color.Parse("#00D4AA")),
-                        Background = new SolidColorBrush(Color.Parse("#21262D")),
+                        Foreground = new SolidColorBrush(Color.Parse("#19D3A8")),
+                        Background = new SolidColorBrush(Color.Parse("#1E252F")),
                         CornerRadius = new CornerRadius(2),
                         MinHeight = 4
                     },
                     new TextBlock
                     {
                         Text = "Please wait...",
-                        Foreground = new SolidColorBrush(Color.Parse("#6E7681")),
+                        Foreground = new SolidColorBrush(Color.Parse("#7A8696")),
                         FontSize = 11,
                         HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
                     }

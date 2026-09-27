@@ -1,0 +1,204 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sylnar.ViewModels"
+             xmlns:ctrl="using:Sylnar.Views.Controls"
+             x:Class="Sylnar.Views.Pages.BarProbePage"
+             x:DataType="vm:BarProbeViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.hex">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="LineHeight" Value="20" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.hex.offset">
+      <Setter Property="Foreground" Value="{StaticResource TextFaintBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel>
+
+    <Border DockPanel.Dock="Top" Classes="page-header">
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <StackPanel Spacing="1" VerticalAlignment="Center">
+          <TextBlock Classes="h1" Text="BAR Probe" />
+          <TextBlock Classes="sub" Text="Read physical memory through the FPGA" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="secondary" Margin="12,0,0,0" VerticalAlignment="Center"
+                Content="Test FPGA link" Command="{Binding TestConnectionCommand}"
+                ToolTip.Tip="Reads system RAM at 0x100000 to confirm the FTDI → leechcore → FPGA chain works" />
+        <Button Grid.Column="2" Classes="secondary" Margin="12,0,0,0" VerticalAlignment="Center"
+                Content="Read config space" Command="{Binding ReadFpgaCfgCommand}"
+                ToolTip.Tip="Reads the FPGA's own PCIe config space with Type 0 config TLPs. Use this instead of reading the card's own BAR, which most chipsets don't route back." />
+      </Grid>
+    </Border>
+
+    <!-- No page scroller here: the two cards scroll their own lists, so they
+         must be held to the window height. -->
+    <Border Padding="16">
+      <Grid RowDefinitions="Auto,12,*">
+
+        <!-- ═══ Read settings ═══ -->
+        <Border Classes="card" Padding="14,12">
+          <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+            <StackPanel Width="170" Spacing="5">
+              <TextBlock Classes="caption" Text="Address (hex)" />
+              <TextBox Classes="field" Text="{Binding AddressHex}" Watermark="e.g. 100000"
+                       AutomationProperties.Name="Address (hex)" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Width="78" Spacing="5" Margin="10,0,0,0">
+              <TextBlock Classes="caption" Text="Length" />
+              <TextBox Classes="field" Text="{Binding Length}" AutomationProperties.Name="Length in bytes"
+                       ToolTip.Tip="Bytes to read, 1 to 4096" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Width="90" Spacing="5" Margin="10,0,0,0">
+              <TextBlock Classes="caption" Text="Period (ms)" />
+              <TextBox Classes="field" Text="{Binding PeriodMs}" AutomationProperties.Name="Poll period in milliseconds"
+                       ToolTip.Tip="Polling interval, 10 to 60000 ms" />
+            </StackPanel>
+            <StackPanel Grid.Column="3" Spacing="5" Margin="10,0,0,0">
+              <TextBlock Classes="caption" Text="Log file" />
+              <TextBox Classes="field" FontSize="12" Text="{Binding LogFile}"
+                       Watermark="auto: %TEMP%\barprobe_…log" AutomationProperties.Name="Poll log file"
+                       ToolTip.Tip="Polling appends a timestamped hex dump here every period. It stops by itself when the FPGA stops answering." />
+            </StackPanel>
+            <Button Grid.Column="4" Classes="primary" Margin="10,0,0,0" VerticalAlignment="Bottom"
+                    Content="Read once" Command="{Binding ReadOnceCommand}" />
+            <Button Grid.Column="5" Classes="secondary" Margin="10,0,0,0" VerticalAlignment="Bottom"
+                    Content="Start polling" Command="{Binding StartPollCommand}" />
+          </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="400,12,*">
+
+          <!-- ═══ Last read ═══ -->
+          <Border Classes="card" Padding="16,14">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Classes="section" Text="LAST READ" />
+                <TextBlock Grid.Column="1" Classes="meta" Text="{Binding LastReadInfo}" Margin="12,0,0,0"
+                           HorizontalAlignment="Right" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+              </Grid>
+
+              <ScrollViewer Grid.Row="1" Margin="0,10,0,0" HorizontalScrollBarVisibility="Disabled">
+                <!-- Right gutter keeps the overlay scrollbar off the last hex column -->
+                <StackPanel Spacing="10" Margin="0,0,10,0">
+                  <Border Classes="inset" Padding="12,10" IsVisible="{Binding HasNoRead}">
+                    <TextBlock Classes="caption" TextWrapping="Wrap"
+                               Text="Read an address, test the FPGA link or read the config space to see the bytes here." />
+                  </Border>
+
+                  <Border Classes="note danger" IsVisible="{Binding HasLastReadError}">
+                    <Grid ColumnDefinitions="Auto,*">
+                      <ctrl:StrokeIcon Classes="note-icon" />
+                      <TextBlock Grid.Column="1" Text="{Binding LastReadError}" />
+                    </Grid>
+                  </Border>
+
+                  <Border Classes="inset" Padding="12,10" IsVisible="{Binding HasRead}">
+                    <ItemsControl ItemsSource="{Binding HexRows}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:HexRow">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="hex offset" Text="{Binding Offset}" />
+                            <TextBlock Classes="hex" Text="{Binding Bytes}" />
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Border>
+
+                  <StackPanel Spacing="6" IsVisible="{Binding HasDwords}">
+                    <TextBlock Classes="caption" Text="As 32-bit DWORDs" />
+                    <ItemsControl ItemsSource="{Binding Dwords}" Margin="0,0,-6,0">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <UniformGrid Columns="4" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:DwordCell">
+                          <Border Classes="inset" CornerRadius="6" Padding="8,6" Margin="0,0,6,6"
+                                  ToolTip.Tip="{Binding Details}">
+                            <TextBlock Classes="mono" FontSize="11.5" FontWeight="Medium"
+                                       Foreground="{StaticResource TextSecondaryBrush}" Text="{Binding Hex}" />
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+
+                  <StackPanel Spacing="6" IsVisible="{Binding HasDecoded}">
+                    <TextBlock Classes="caption" Text="Decoded config header" />
+                    <Border Classes="inset" Padding="12,10">
+                      <SelectableTextBlock FontFamily="{StaticResource MonoFont}" FontSize="11" LineHeight="18"
+                                           Foreground="{StaticResource TextSecondaryBrush}" Text="{Binding DecodedText}" />
+                    </Border>
+                  </StackPanel>
+                </StackPanel>
+              </ScrollViewer>
+
+              <!-- Status + polling -->
+              <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,10,0,0">
+                <Ellipse Classes="dot" ctrl:ToneClass.Tone="{Binding StatusTone}" Margin="0,0,8,0" />
+                <TextBlock Grid.Column="1" Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{StaticResource TextMutedBrush}" TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding StatusText}" />
+                <TextBlock Grid.Column="2" Classes="caption" Text="{Binding SamplesText}"
+                           VerticalAlignment="Center" Margin="8,0,0,0" />
+                <Button Grid.Column="3" Classes="secondary xs" Height="28" Margin="8,0,0,0"
+                        Content="Stop polling" Command="{Binding StopPollCommand}" />
+              </Grid>
+            </Grid>
+          </Border>
+
+          <!-- ═══ PCIe devices ═══ -->
+          <Border Grid.Column="2" Classes="card" Padding="16,14">
+            <Grid RowDefinitions="Auto,Auto,*,Auto">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="section" Text="PCIe DEVICES" />
+                <Button Grid.Column="1" Classes="secondary xs" Content="Refresh list"
+                        Command="{Binding EnumerateDevicesCommand}"
+                        ToolTip.Tip="Lists host PCIe devices and their BAR address ranges (Windows WMI, no DMA)" />
+              </Grid>
+
+              <Border Grid.Row="1" Margin="0,10,0,0" Padding="8,0,8,6"
+                      BorderBrush="{StaticResource LineInsetBrush}" BorderThickness="0,0,0,1">
+                <Grid ColumnDefinitions="*,94,160">
+                  <TextBlock Classes="caption" Text="Device" />
+                  <TextBlock Grid.Column="1" Classes="caption" Text="VEN:DEV" Margin="10,0,0,0" />
+                  <TextBlock Grid.Column="2" Classes="caption" Text="BAR range" Margin="10,0,0,0" />
+                </Grid>
+              </Border>
+
+              <ListBox Grid.Row="2" Classes="rows" Margin="0,4,0,0"
+                       ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedBar}"
+                       AutomationProperties.Name="PCIe devices">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:PciBarRow">
+                    <Grid ColumnDefinitions="*,94,160" Background="Transparent" ToolTip.Tip="{Binding Details}">
+                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="1" Classes="mono" FontSize="11.5" Text="{Binding VenDev}"
+                                 Margin="10,0,0,0" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="2" Classes="mono" FontSize="11.5" Text="{Binding Range}"
+                                 Margin="10,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+
+              <TextBlock Grid.Row="2" Classes="caption" Margin="8,10,0,0" VerticalAlignment="Top"
+                         IsVisible="{Binding !HasDevices}" Text="No devices listed yet. Press Refresh list." />
+
+              <TextBlock Grid.Row="3" Classes="meta" Margin="0,10,0,0"
+                         Text="Click a row to copy its BAR start into Address." />
+            </Grid>
+          </Border>
+
+        </Grid>
+      </Grid>
+    </Border>
+
+  </DockPanel>
+</UserControl>

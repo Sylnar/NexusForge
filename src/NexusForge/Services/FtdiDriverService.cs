@@ -149,14 +149,14 @@ foreach ($d in $devs) {
             info.Status = "Wrong Driver";
             _log.Warn("FTDI FT601 has the OLD driver (FTDIBUS3).");
             _log.Warn("  LeechCore v2.22+ requires the WinUSB SuperSpeed driver (v1.4.x).");
-            _log.Error("  Click 'Install Driver' to update to the correct WinUSB driver.");
+            _log.Error("  Click 'Install driver' on the Drivers page to update to the correct WinUSB driver.");
         }
         else
         {
             info.IsDriverOk = false;
             info.Status = "Driver Missing";
             _log.Error("FTDI FT601 driver NOT installed.");
-            _log.Error("  Click 'Install Driver' to install the WinUSB SuperSpeed driver.");
+            _log.Error("  Click 'Install driver' on the Drivers page to install the WinUSB SuperSpeed driver.");
         }
 
         return info;
@@ -214,7 +214,7 @@ foreach ($d in $devs) {
             }
 
             _log.Warn("Driver installed but not yet bound.");
-            _log.Warn("Replug the DATA USB cable, then click Check Driver.");
+            _log.Warn("Replug the DATA USB cable, then click Check.");
             return false;
         }
         catch (Exception ex)
@@ -263,7 +263,7 @@ foreach ($d in $devs) {
             if (delCode is PnpUtil.Success or PnpUtil.RebootRequired)
             {
                 _log.Info("FTDI driver removed.");
-                _log.Warn("Replug the DATA USB cable, then click Check Driver.");
+                _log.Warn("Replug the DATA USB cable, then click Check.");
                 return true;
             }
             _log.Warn($"Driver removal failed (pnputil code {delCode}). Close programs using the device and retry as Administrator.");

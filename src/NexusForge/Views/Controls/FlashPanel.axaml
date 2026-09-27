@@ -1,152 +1,128 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Sylnar.ViewModels"
+             xmlns:ctrl="using:Sylnar.Views.Controls"
              x:Class="Sylnar.Views.Controls.FlashPanel"
              x:DataType="vm:FlashViewModel">
 
-  <Border Classes="card"
-          Background="#161B22"
-          BorderBrush="#21262D"
-          BorderThickness="1"
-          CornerRadius="8">
-    <StackPanel>
+  <UserControl.Styles>
+    <!-- Step bar: pending / active / done / failed -->
+    <Style Selector="StackPanel.step TextBlock">
+      <Setter Property="FontSize" Value="11.5" />
+      <Setter Property="Foreground" Value="{StaticResource TextSubtleBrush}" />
+    </Style>
+    <Style Selector="StackPanel.step.done TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="StackPanel.step.active TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="StackPanel.step.failed TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+    </Style>
+    <Style Selector="StackPanel.step.failed ProgressBar">
+      <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+    </Style>
+    <Style Selector="TextBlock.file-name.none">
+      <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+    </Style>
+  </UserControl.Styles>
 
-      <!-- ── Section header ── -->
-      <Border BorderBrush="#21262D" BorderThickness="0,0,0,1" Padding="16,12,16,12">
-        <Grid ColumnDefinitions="Auto,*,Auto">
+  <!-- The whole card accepts a dropped .bin / .bit file -->
+  <Border x:Name="Card" Classes="card" DragDrop.AllowDrop="True">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
 
-          <!-- Left accent + title -->
-          <Border Grid.Column="0" Background="#58A6FF" Width="3" CornerRadius="2"
-                  VerticalAlignment="Stretch" Margin="0,0,10,0" />
-          <TextBlock Grid.Column="1"
-                     Text="FIRMWARE FLASH"
-                     FontSize="11" FontWeight="SemiBold"
-                     Foreground="#E6EDF3"
-                     VerticalAlignment="Center" />
+      <!-- ── Heading + mode ── -->
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Classes="section" Text="FIRMWARE" />
+        <Border Grid.Column="1" Classes="pill plain" IsVisible="{Binding IsFileValid}">
+          <TextBlock Text="{Binding FlashModeText}" />
+        </Border>
+      </Grid>
 
-          <!-- Browse button -->
-          <Button Grid.Column="2"
-                  Classes="primary"
-                  Command="{Binding BrowseFileCommand}">
-            Browse
-          </Button>
-
-        </Grid>
-      </Border>
-
-      <!-- ── File info row ── -->
-      <Border Margin="16,12,16,0" Padding="12,9"
-              Background="#0D1117" BorderBrush="#21262D" BorderThickness="1" CornerRadius="7">
-        <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
-
-          <!-- Filename label -->
-          <TextBlock Grid.Row="0" Grid.Column="0"
-                     Text="File:" Foreground="#6E7681" FontSize="12"
-                     VerticalAlignment="Center" Margin="0,0,10,0"/>
-          <TextBlock Grid.Row="0" Grid.Column="1"
-                     Text="{Binding FirmwareFileName}"
-                     Foreground="#C9D1D9" FontSize="12"
-                     VerticalAlignment="Center"
-                     TextTrimming="CharacterEllipsis"/>
-
-          <!-- Size badge -->
-          <Border Grid.Row="0" Grid.Column="2"
-                  Background="#21262D" CornerRadius="4"
-                  Padding="8,3" Margin="8,0,0,0"
-                  IsVisible="{Binding IsFileValid}">
-            <TextBlock Text="{Binding FileSizeText}"
-                       Foreground="#8B949E" FontSize="11" />
+      <!-- ── File (drop zone) ── -->
+      <Panel Grid.Row="1" Margin="0,14,0,0">
+        <Rectangle x:Name="DropZone" Classes="dropzone" />
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="12">
+          <Border Classes="icon-box">
+            <ctrl:StrokeIcon Data="{StaticResource IconFile}" />
           </Border>
-
-          <!-- Validation message -->
-          <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"
-                     Text="{Binding FileValidationMessage}"
-                     Foreground="#E3B341" FontSize="11"
-                     Margin="0,4,0,0"
-                     IsVisible="{Binding !IsFileValid}" />
-
+          <StackPanel Grid.Column="1" Spacing="2" Margin="12,0" VerticalAlignment="Center">
+            <TextBlock Classes="file-name" Classes.none="{Binding !HasFile}"
+                       Text="{Binding FirmwareFileName}" FontSize="13" FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FirmwarePath}" />
+            <TextBlock Classes="tone" ctrl:ToneClass.Tone="{Binding FileDetailTone}"
+                       Text="{Binding FileDetailText}" FontSize="11.5" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <Button Grid.Column="2" Classes="secondary sm" Padding="12,0" Content="Browse"
+                  Command="{Binding BrowseFileCommand}" VerticalAlignment="Center" />
         </Grid>
-      </Border>
+      </Panel>
 
-      <!-- ── Progress section ── -->
-      <Border Padding="16,12,16,0">
-        <StackPanel Spacing="6">
+      <!-- ── Steps ── -->
+      <ItemsControl Grid.Row="2" Margin="0,14,-8,0" ItemsSource="{Binding Steps}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Rows="1" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:FlashStep">
+            <StackPanel Classes="step" Spacing="6" Margin="0,0,8,0"
+                        Classes.active="{Binding IsActive}"
+                        Classes.done="{Binding IsDone}"
+                        Classes.failed="{Binding IsFailed}">
+              <ProgressBar Classes="step" Value="{Binding Progress}" />
+              <TextBlock Text="{Binding Label}" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
 
-          <!-- Progress bar + percentage -->
-          <Grid ColumnDefinitions="*,Auto">
-            <ProgressBar Grid.Column="0"
-                         Value="{Binding FlashPercentage}"
-                         Minimum="0" Maximum="100"
-                         VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="1"
-                       Foreground="#6E7681" FontSize="11"
-                       VerticalAlignment="Center"
-                       Margin="8,0,0,0">
-              <TextBlock.Text>
-                <MultiBinding StringFormat="{}{0}%">
-                  <Binding Path="FlashPercentage"/>
-                </MultiBinding>
-              </TextBlock.Text>
-            </TextBlock>
+      <!-- ── Progress ── -->
+      <StackPanel Grid.Row="3" Margin="0,14,0,0" Spacing="8">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="{Binding ProgressText}" FontSize="13" VerticalAlignment="Bottom"
+                     Margin="0,0,0,3" TextTrimming="CharacterEllipsis" />
+          <TextBlock Grid.Column="1" Classes="mono tone" ctrl:ToneClass.Tone="{Binding ProgressTone}"
+                     Text="{Binding PercentText}" FontSize="20" FontWeight="SemiBold" Margin="12,0,0,0" />
+        </Grid>
+        <ProgressBar Classes="bar" Classes.danger="{Binding IsFailedRun}"
+                     Minimum="0" Maximum="100" Value="{Binding FlashPercentage}" />
+        <TextBlock Classes="meta" Text="{Binding ElapsedText}" TextTrimming="CharacterEllipsis" />
+      </StackPanel>
+
+      <!-- ── Result ── -->
+      <StackPanel Grid.Row="4" Margin="0,14,0,0" Spacing="8" VerticalAlignment="Top">
+        <Border Classes="note ok strong" IsVisible="{Binding IsFlashComplete}">
+          <Grid ColumnDefinitions="Auto,*">
+            <ctrl:StrokeIcon Classes="note-icon" />
+            <TextBlock Grid.Column="1" Text="{Binding FlashSuccessMessage}" />
           </Grid>
+        </Border>
+        <Border Classes="note danger" IsVisible="{Binding HasFlashError}">
+          <Grid ColumnDefinitions="Auto,*">
+            <ctrl:StrokeIcon Classes="note-icon" />
+            <StackPanel Grid.Column="1" Spacing="2">
+              <TextBlock Text="{Binding FlashErrorMessage}" FontWeight="SemiBold" />
+              <TextBlock Text="See the log below for the cause and what to try."
+                         Foreground="{StaticResource TextMutedBrush}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+      </StackPanel>
 
-          <!-- Stage + message -->
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <TextBlock Text="{Binding FlashStage}"
-                       Foreground="#6E7681" FontSize="11"
-                       IsVisible="{Binding IsFlashing}"/>
-            <TextBlock Text="·" Foreground="#484F58" FontSize="11"
-                       IsVisible="{Binding IsFlashing}"/>
-            <TextBlock Text="{Binding FlashMessage}"
-                       Foreground="#8B949E" FontSize="11"/>
-          </StackPanel>
+      <!-- ── Actions ── -->
+      <Grid Grid.Row="5" ColumnDefinitions="*,Auto,Auto" Margin="0,14,0,0">
+        <TextBlock Classes="meta" Text="{Binding CancelNote}" TextWrapping="Wrap"
+                   VerticalAlignment="Center" Margin="0,0,8,0" />
+        <Button Grid.Column="1" Classes="danger-outline lg" Padding="14,0" Content="Cancel"
+                Command="{Binding CancelFlashCommand}" Margin="0,0,8,0" />
+        <Button Grid.Column="2" Classes="primary lg" Content="{Binding FlashButtonText}"
+                Command="{Binding FlashFirmwareCommand}" />
+      </Grid>
 
-        </StackPanel>
-      </Border>
-
-      <!-- ── Result banner: success / failure after a flash ── -->
-      <Border Margin="16,12,16,0" Padding="12,9" CornerRadius="7"
-              Background="#143FB950" BorderBrush="#553FB950" BorderThickness="1"
-              IsVisible="{Binding IsFlashComplete}">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Text="✓" Foreground="#3FB950" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
-          <TextBlock Text="{Binding FlashSuccessMessage}"
-                     Foreground="#C9D1D9" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap"/>
-        </StackPanel>
-      </Border>
-      <Border Margin="16,12,16,0" Padding="12,9" CornerRadius="7"
-              Background="#14F85149" BorderBrush="#55F85149" BorderThickness="1"
-              IsVisible="{Binding HasFlashError}">
-        <Grid ColumnDefinitions="Auto,*">
-          <TextBlock Text="!" Foreground="#F85149" FontSize="13" FontWeight="Bold"
-                     VerticalAlignment="Top" Margin="2,0,10,0"/>
-          <StackPanel Grid.Column="1" Spacing="2">
-            <TextBlock Text="{Binding FlashErrorMessage}"
-                       Foreground="#FFA198" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
-            <TextBlock Text="See the status log below for the cause and what to try."
-                       Foreground="#8B949E" FontSize="11" TextWrapping="Wrap"/>
-          </StackPanel>
-        </Grid>
-      </Border>
-
-      <!-- ── Action buttons ── -->
-      <!-- v1.1.25: removed "Verify after flash" checkbox - it was a phantom
-           control. jtagspi_program always runs its internal verify_bank as
-           part of write on this bridge; the checkbox toggled nothing. -->
-      <Border Padding="16,12,16,14">
-        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-          <Button Classes="primary"
-                  Command="{Binding FlashFirmwareCommand}"
-                  Padding="20,7">
-            Flash Firmware
-          </Button>
-          <Button Classes="danger-outline"
-                  Command="{Binding CancelFlashCommand}">
-            Cancel
-          </Button>
-        </StackPanel>
-      </Border>
-
-    </StackPanel>
+    </Grid>
   </Border>
 </UserControl>

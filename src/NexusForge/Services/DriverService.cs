@@ -181,7 +181,7 @@ if ($svcObj) {
             info.Status = "Driver Missing";
             _log.Error("CH347 WCH driver is NOT installed.");
             _log.Error("  The USB device is connected but the JTAG driver is missing.");
-            _log.Error("  Click 'Install Driver' to install the bundled WCH driver.");
+            _log.Error("  Click 'Install driver' on the Drivers page to install the bundled WCH driver.");
         }
 
         return info;
@@ -240,7 +240,7 @@ if ($svcObj) {
             }
 
             _log.Warn("Driver installed but not yet bound to device.");
-            _log.Warn("Replug the USB cable, then click 'Check Driver'.");
+            _log.Warn("Replug the USB cable, then click 'Check'.");
             return false;
         }
         catch (Exception ex)
@@ -297,7 +297,7 @@ foreach ($d in $devs) {
                 if (delCode is PnpUtil.Success or PnpUtil.RebootRequired)
                 {
                     _log.Info("CH347 driver removed successfully.");
-                    _log.Warn("Replug the USB cable, then click 'Check Driver'.");
+                    _log.Warn("Replug the USB cable, then click 'Check'.");
                     await Task.Delay(1000);
                     await CheckDriverAsync();
                     return true;

@@ -128,6 +128,7 @@ public class App : Application
 
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
+                        mainViewModel.SetUpdateOutcome(updater.LastOutcome);
                         if (shouldRestart)
                         {
                             CrashLogger.WriteLine("AutoUpdate: applying update, exiting cleanly.");
@@ -149,6 +150,8 @@ public class App : Application
                 catch (Exception ex)
                 {
                     CrashLogger.LogException("AutoUpdate background task", ex);
+                    Avalonia.Threading.Dispatcher.UIThread.Post(
+                        () => mainViewModel.SetUpdateOutcome(UpdateCheckOutcome.Failed));
                 }
             });
         }

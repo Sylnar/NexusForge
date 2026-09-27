@@ -57,10 +57,10 @@ class Program
         }
     }
 
+    // Fonts are embedded (Assets/Fonts) and wired up in Styles/Theme.axaml.
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
-            .WithInterFont()
             .LogToTrace();
 
     private static void ResetSingleFileExtractCache()

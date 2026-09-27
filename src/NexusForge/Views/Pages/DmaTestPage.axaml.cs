@@ -2,11 +2,11 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Sylnar.ViewModels;
 
-namespace Sylnar.Views.Controls;
+namespace Sylnar.Views.Pages;
 
-public partial class DmaTestPanel : UserControl
+public partial class DmaTestPage : UserControl
 {
-    public DmaTestPanel()
+    public DmaTestPage()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
@@ -44,7 +44,7 @@ public partial class DmaTestPanel : UserControl
         if (DataContext is DmaTestViewModel vm)
         {
             vm.MmapStatus = $"Saved to {file.Name}";
-            vm.MmapStatusColor = "#00D4AA";
+            vm.MmapStatusTone = Tone.Ok;
         }
     }
 }

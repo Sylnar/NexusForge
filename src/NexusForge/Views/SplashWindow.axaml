@@ -16,13 +16,13 @@
           ClipToBounds="True">
     <Border.Background>
       <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-        <GradientStop Color="#0D1117" Offset="0"/>
-        <GradientStop Color="#111922" Offset="0.5"/>
-        <GradientStop Color="#0A1628" Offset="1"/>
+        <GradientStop Color="#0D1015" Offset="0"/>
+        <GradientStop Color="#11161C" Offset="0.5"/>
+        <GradientStop Color="#0B0E12" Offset="1"/>
       </LinearGradientBrush>
     </Border.Background>
 
-    <Border BorderBrush="#1E2A3A" BorderThickness="1" CornerRadius="16">
+    <Border BorderBrush="#1E252F" BorderThickness="1" CornerRadius="16">
       <Grid RowDefinitions="*,Auto,Auto">
 
         <!-- Main content -->
@@ -39,13 +39,13 @@
                   Name="LogoBorder">
             <Border.Background>
               <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#00D4AA" Offset="0"/>
-                <GradientStop Color="#00A88A" Offset="1"/>
+                <GradientStop Color="#19D3A8" Offset="0"/>
+                <GradientStop Color="#14B994" Offset="1"/>
               </LinearGradientBrush>
             </Border.Background>
-            <Border.BoxShadow>0 4 24 0 #4000D4AA</Border.BoxShadow>
+            <Border.BoxShadow>0 4 24 0 #4019D3A8</Border.BoxShadow>
             <TextBlock Text="S"
-                       Foreground="#0A0D14"
+                       Foreground="#04211A"
                        FontSize="36"
                        FontWeight="Bold"
                        HorizontalAlignment="Center"
@@ -57,12 +57,12 @@
             <TextBlock Text="SYLNAR"
                        FontSize="28"
                        FontWeight="Bold"
-                       Foreground="#E6EDF3"
+                       Foreground="#E7ECF2"
                        HorizontalAlignment="Center"
                        LetterSpacing="3" />
             <TextBlock Text="DMA FPGA Management Tool"
                        FontSize="12"
-                       Foreground="#6E7681"
+                       Foreground="#7A8696"
                        HorizontalAlignment="Center" />
           </StackPanel>
 
@@ -74,24 +74,24 @@
                     Spacing="10">
 
           <!-- Progress bar track -->
-          <Border Background="#161B22"
+          <Border Background="#1E252F"
                   CornerRadius="3"
                   Height="4"
                   ClipToBounds="True">
             <Border Name="ProgressFill"
-                    Background="#00D4AA"
+                    Background="#19D3A8"
                     CornerRadius="3"
                     Height="4"
                     HorizontalAlignment="Left"
                     Width="0">
-              <Border.BoxShadow>0 0 8 0 #8000D4AA</Border.BoxShadow>
+              <Border.BoxShadow>0 0 8 0 #8019D3A8</Border.BoxShadow>
             </Border>
           </Border>
 
           <!-- Status text -->
           <TextBlock Name="StatusText"
                      Text="Initializing..."
-                     Foreground="#484F58"
+                     Foreground="#5E6A7A"
                      FontSize="11"
                      HorizontalAlignment="Center" />
         </StackPanel>
@@ -102,12 +102,12 @@
                     Margin="0,16,0,20"
                     Orientation="Horizontal"
                     Spacing="6">
-          <Ellipse Width="5" Height="5" Fill="#3FB950" VerticalAlignment="Center" />
+          <Ellipse Width="5" Height="5" Fill="#19D3A8" VerticalAlignment="Center" />
           <!-- v1.1.25: Text bound via x:Static so design-time preview and
                runtime both source from VersionInfo (single source of truth). -->
           <TextBlock Name="VersionText"
                      Text="{x:Static h:VersionInfo.WithV}"
-                     Foreground="#30363D"
+                     Foreground="#5E6A7A"
                      FontSize="10" />
         </StackPanel>
 

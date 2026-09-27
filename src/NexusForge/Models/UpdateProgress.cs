@@ -7,6 +7,15 @@ public enum UpdateStage
     Applying
 }
 
+/// <summary>Result of the launch-time update check, for the sidebar footer.</summary>
+public enum UpdateCheckOutcome
+{
+    Pending,
+    UpToDate,
+    UpdateAvailable,
+    Failed
+}
+
 public class UpdateProgress
 {
     public UpdateStage Stage { get; init; }

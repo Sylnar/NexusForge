@@ -1,0 +1,108 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sylnar.ViewModels"
+             xmlns:ctrl="using:Sylnar.Views.Controls"
+             x:Class="Sylnar.Views.Controls.DriverCard"
+             x:DataType="vm:DriverStatusViewModel">
+
+  <UserControl.Styles>
+    <!-- Definition rows: label left, value right, hairline between -->
+    <Style Selector="Border.row">
+      <Setter Property="Padding" Value="0,9" />
+      <Setter Property="BorderBrush" Value="{StaticResource LineDividerBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <Style Selector="Border.row TextBlock.dt">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{StaticResource TextSubtleBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.row TextBlock.dd">
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="Margin" Value="16,0,0,0" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.row TextBlock.dd.muted">
+      <Setter Property="Foreground" Value="{StaticResource TextSubtleBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Classes="card" ctrl:ToneClass.Tone="{Binding CardTone}">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+      <!-- ── Title + status ── -->
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Border Classes="icon-box" ctrl:ToneClass.Tone="{Binding CardTone}" VerticalAlignment="Top">
+          <ctrl:StrokeIcon Data="{Binding $parent[ctrl:DriverCard].Icon}" />
+        </Border>
+        <StackPanel Grid.Column="1" Spacing="2" Margin="12,0" VerticalAlignment="Top">
+          <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <Border Grid.Column="2" Classes="pill" ctrl:ToneClass.Tone="{Binding StatusTone}" VerticalAlignment="Top">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Ellipse />
+            <TextBlock Text="{Binding StatusText}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- ── Details ── -->
+      <Border Grid.Row="1" Margin="0,14,0,0" BorderBrush="{StaticResource LineInsetBrush}" BorderThickness="0,1,0,0">
+        <StackPanel>
+          <Border Classes="row">
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Classes="dt" Text="Device" />
+              <TextBlock Grid.Column="1" Classes="dd" Text="{Binding DeviceText}" ToolTip.Tip="{Binding DeviceText}" />
+            </Grid>
+          </Border>
+          <Border Classes="row">
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Classes="dt" Text="VID / PID" />
+              <TextBlock Grid.Column="1" Classes="dd mono" FontWeight="Medium" Text="{Binding VidPidText}" />
+            </Grid>
+          </Border>
+          <Border Classes="row">
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Classes="dt" Text="Version" />
+              <TextBlock Grid.Column="1" Classes="dd mono" Classes.muted="{Binding !HasVersion}"
+                         FontWeight="Medium" Text="{Binding VersionText}" />
+            </Grid>
+          </Border>
+          <Border Classes="row">
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Classes="dt" Text="Driver" />
+              <TextBlock Grid.Column="1" Classes="dd" Text="{Binding DriverText}" ToolTip.Tip="{Binding DriverText}" />
+            </Grid>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- ── What it means / what to do ── -->
+      <Border Grid.Row="3" Classes="note" ctrl:ToneClass.Tone="{Binding MessageTone}" Margin="0,14,0,0">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+          <ctrl:StrokeIcon Classes="note-icon" />
+          <TextBlock Grid.Column="1" Text="{Binding Message}" />
+          <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Classes="thin" IsIndeterminate="True"
+                       IsVisible="{Binding IsBusy}" Margin="0,10,0,0" />
+        </Grid>
+      </Border>
+
+      <!-- ── Actions ── -->
+      <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,14,0,0">
+        <Button Classes="secondary" Content="Check" Command="{Binding CheckCommand}" />
+        <Panel Grid.Column="1" Margin="8,0,0,0">
+          <Button Classes="primary" Content="Install driver" Command="{Binding InstallCommand}"
+                  IsVisible="{Binding !IsDriverOk}" />
+          <Button Classes="secondary" Content="Reinstall" Command="{Binding InstallCommand}"
+                  IsVisible="{Binding IsDriverOk}" />
+        </Panel>
+        <Button Grid.Column="3" Classes="danger" Content="Uninstall" Command="{Binding UninstallCommand}" />
+      </Grid>
+
+    </Grid>
+  </Border>
+</UserControl>

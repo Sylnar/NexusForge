@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sylnar.ViewModels"
+             xmlns:ctrl="using:Sylnar.Views.Controls"
+             x:Class="Sylnar.Views.Pages.DriversPage"
+             x:DataType="vm:DriverViewModel">
+  <DockPanel>
+
+    <Border DockPanel.Dock="Top" Classes="page-header">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="1" VerticalAlignment="Center">
+          <TextBlock Classes="h1" Text="Drivers" />
+          <TextBlock Classes="sub" Text="Both USB links need their driver · run Sylnar as Administrator" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="secondary" Margin="12,0,0,0" VerticalAlignment="Center"
+                Command="{Binding CheckBothCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <ctrl:StrokeIcon Data="{StaticResource IconRefresh}" Width="14" Height="14" StrokeThickness="2.2" />
+            <TextBlock Text="Check both" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <Border Padding="16" MinHeight="{Binding #Scroller.Bounds.Height}">
+        <Grid ColumnDefinitions="*,12,*">
+          <ctrl:DriverCard Grid.Column="0" DataContext="{Binding Ch347}" Icon="{StaticResource IconChip}" />
+          <ctrl:DriverCard Grid.Column="2" DataContext="{Binding Ft601}" Icon="{StaticResource IconPlug}" />
+        </Grid>
+      </Border>
+    </ScrollViewer>
+
+  </DockPanel>
+</UserControl>

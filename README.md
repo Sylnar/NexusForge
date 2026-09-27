@@ -64,19 +64,19 @@ Download `Sylnar.exe` from the [latest release](../../releases/latest).
 ### 2. Install Drivers (First Time Only)
 - Connect your DMA board via USB
 - Launch Sylnar (run as Administrator)
-- Go to the **Drivers** tab
-- Click **Install CH347 Driver** (for JTAG)
-- Click **Install FT601 Driver** (for DMA data)
+- Open **Drivers** in the sidebar (the sidebar's Hardware card shows both drivers' status)
+- On the **CH347 · JTAG** card, click **Install driver** (for JTAG)
+- On the **FT601 · USB 3 data** card, click **Install driver** (for DMA data)
 
 ### 3. Detect Board
-- Click **Detect Board**
+- On **Board & Flash**, click **Detect board**
 - Sylnar will display your board info and **Device DNA**
-- Click **Copy DNA** to copy it to clipboard
+- Click **Copy** next to the DNA to copy it to clipboard
 
 ### 4. Flash Firmware
-- Click **Browse** and select your `.bin` firmware file
-- Click **Flash Firmware**
-- Wait for erase → write → verify to complete
+- Click **Browse** and select your `.bin` firmware file, or drop it on the Firmware card
+- Click **Flash firmware**
+- Wait for bridge → erase → write to complete
 - Power cycle the target PC
 
 ---
@@ -102,10 +102,10 @@ Sylnar communicates with the DMA board over USB:
 ```
 1. Install Sylnar on radar PC
 2. Connect DMA board via USB
-3. Click "Detect Board" → copy DNA
+3. Click "Detect board" → copy DNA
 4. Send DNA to firmware provider
 5. Receive DNA-locked firmware (.bin)
-6. Click "Flash Firmware" → select .bin → flash
+6. Select the .bin → click "Flash firmware"
 7. Power cycle gaming PC
 8. Done — firmware is active
 ```
@@ -138,7 +138,7 @@ No manual downloads needed after initial install.
 
 | Issue | Solution |
 |-------|----------|
-| "CH347 adapter not found" | Install the CH347 driver from the Drivers tab, then replug USB |
+| "CH347 adapter not found" | Install the CH347 driver on the Drivers page, then replug USB |
 | "FPGA not responding" | Ensure the board has power (PCIe slot must be powered). Replug USB. |
 | "Could not read DNA" | Replug USB cable. Make sure only one JTAG adapter is connected. |
 | Flash fails at erase | Power cycle the board, then retry. Check USB cable quality. |

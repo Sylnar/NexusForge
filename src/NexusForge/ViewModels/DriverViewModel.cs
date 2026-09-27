@@ -1,230 +1,66 @@
+using System.ComponentModel;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using Sylnar.Services;
 
 namespace Sylnar.ViewModels;
 
+/// <summary>The Drivers page: both USB links side by side.</summary>
 public class DriverViewModel : BaseViewModel
 {
-    private readonly DriverService _driverService;
-    private readonly LogService    _logService;
+    private readonly AsyncRelayCommand _checkBothCommand;
 
-    private bool   _isBusy;
-    private bool   _isChecked;
-    private bool   _isDriverOk;
-    private bool   _isDeviceDetected;
-    private string _statusText    = "Not checked";
-    private string _statusColor   = "#6E7681";
-    private string _versionText   = "—";
-    private string _deviceName    = "—";
-    private string _driverType    = "—";
-    private string _vidPid        = "1A86:55DD";
-    private string _infPath       = string.Empty;
-    private string _busyMessage   = string.Empty;
+    /// <summary>CH347 USB-JTAG: detection, DNA and flashing.</summary>
+    public DriverStatusViewModel Ch347 { get; }
 
-    public bool IsBusy
+    /// <summary>FTDI FT601 USB 3 data port: DMA transfers and speed tests.</summary>
+    public DriverStatusViewModel Ft601 { get; }
+
+    public ICommand CheckBothCommand => _checkBothCommand;
+
+    public DriverViewModel(DriverService driverService, FtdiDriverService ftdiService, LogService logService)
     {
-        get => _isBusy;
-        set
-        {
-            SetProperty(ref _isBusy, value);
-            ((AsyncRelayCommand)CheckDriverCommand).NotifyCanExecuteChanged();
-            ((AsyncRelayCommand)InstallDriverCommand).NotifyCanExecuteChanged();
-            ((AsyncRelayCommand)UninstallDriverCommand).NotifyCanExecuteChanged();
-        }
+        Ch347 = new DriverStatusViewModel(
+            new DriverCopy(
+                Title: "CH347 · JTAG",
+                Subtitle: "Detection, DNA and flashing",
+                ShortName: "CH347 JTAG",
+                BundledDriver: "CH341WDM (bundled, signed)",
+                ReadyMessage: "Driver active. JTAG is ready for detection and flashing.",
+                MissingMessage: "The JTAG cable is connected but has no driver. Install it, then replug the USB cable.",
+                NotConnectedMessage: "No CH347 found. Plug in the JTAG USB cable (the smaller port on the board), then press Check."),
+            "1A86:55DD",
+            driverService.CheckDriverAsync,
+            driverService.InstallDriverAsync,
+            driverService.UninstallDriverAsync,
+            logService);
+
+        Ft601 = new DriverStatusViewModel(
+            new DriverCopy(
+                Title: "FT601 · USB 3 data",
+                Subtitle: "DMA transfers and speed tests",
+                ShortName: "FT601 Data",
+                BundledDriver: "FTD3XXWU (bundled)",
+                ReadyMessage: "Driver active. The DMA data path is ready.",
+                MissingMessage: "The data cable is connected but has no driver. Install it, then replug the USB 3 cable.",
+                NotConnectedMessage: "No FT601 found. Connect the USB 3 data cable, then press Check.",
+                WrongDriverMessage: "An old FTDI driver is bound. LeechCore needs the WinUSB SuperSpeed driver: install to replace it."),
+            "0403:601F",
+            ftdiService.CheckDriverAsync,
+            ftdiService.InstallDriverAsync,
+            ftdiService.UninstallDriverAsync,
+            logService);
+
+        _checkBothCommand = new AsyncRelayCommand(CheckBothAsync, () => !Ch347.IsBusy && !Ft601.IsBusy);
+        Ch347.PropertyChanged += OnDriverChanged;
+        Ft601.PropertyChanged += OnDriverChanged;
     }
 
-    public bool IsChecked
+    public Task CheckBothAsync() => Task.WhenAll(Ch347.CheckAsync(), Ft601.CheckAsync());
+
+    private void OnDriverChanged(object? sender, PropertyChangedEventArgs e)
     {
-        get => _isChecked;
-        set
-        {
-            if (SetProperty(ref _isChecked, value))
-            {
-                OnPropertyChanged(nameof(ShowNotDetectedWarning));
-                OnPropertyChanged(nameof(ShowDriverMissing));
-            }
-        }
-    }
-
-    public bool IsDriverOk
-    {
-        get => _isDriverOk;
-        set
-        {
-            if (SetProperty(ref _isDriverOk, value))
-                OnPropertyChanged(nameof(ShowDriverMissing));
-        }
-    }
-
-    public bool IsDeviceDetected
-    {
-        get => _isDeviceDetected;
-        set
-        {
-            if (SetProperty(ref _isDeviceDetected, value))
-            {
-                OnPropertyChanged(nameof(ShowNotDetectedWarning));
-                OnPropertyChanged(nameof(ShowDriverMissing));
-            }
-        }
-    }
-
-    public bool ShowNotDetectedWarning => IsChecked && !IsDeviceDetected;
-
-    public bool ShowDriverMissing => IsChecked && IsDeviceDetected && !IsDriverOk;
-
-    public string StatusText
-    {
-        get => _statusText;
-        set => SetProperty(ref _statusText, value);
-    }
-
-    public string StatusColor
-    {
-        get => _statusColor;
-        set => SetProperty(ref _statusColor, value);
-    }
-
-    public string VersionText
-    {
-        get => _versionText;
-        set => SetProperty(ref _versionText, value);
-    }
-
-    public string DeviceName
-    {
-        get => _deviceName;
-        set => SetProperty(ref _deviceName, value);
-    }
-
-    public string DriverType
-    {
-        get => _driverType;
-        set => SetProperty(ref _driverType, value);
-    }
-
-    public string VidPid
-    {
-        get => _vidPid;
-        set => SetProperty(ref _vidPid, value);
-    }
-
-    public string BusyMessage
-    {
-        get => _busyMessage;
-        set => SetProperty(ref _busyMessage, value);
-    }
-
-    public ICommand CheckDriverCommand    { get; }
-    public ICommand InstallDriverCommand  { get; }
-    public ICommand UninstallDriverCommand { get; }
-
-    public DriverViewModel(DriverService driverService, LogService logService)
-    {
-        _driverService = driverService;
-        _logService    = logService;
-
-        CheckDriverCommand     = new AsyncRelayCommand(CheckDriverAsync,     () => !IsBusy);
-        InstallDriverCommand   = new AsyncRelayCommand(InstallDriverAsync,   () => !IsBusy);
-        UninstallDriverCommand = new AsyncRelayCommand(UninstallDriverAsync, () => !IsBusy && IsChecked);
-    }
-
-    private async Task CheckDriverAsync()
-    {
-        IsBusy = true;
-        BusyMessage = "Checking driver status...";
-
-        try
-        {
-            var info = await _driverService.CheckDriverAsync();
-
-            IsDeviceDetected = info.IsDeviceDetected;
-            IsDriverOk       = info.IsDriverOk;
-            VersionText      = info.Version;
-            DeviceName       = info.DeviceName;
-            DriverType       = info.DriverType;
-            VidPid           = info.VidPid;
-            _infPath         = info.InfPath;
-
-            StatusText  = info.Status;
-            StatusColor = info.IsDriverOk
-                ? "#3FB950"
-                : (info.IsDeviceDetected ? "#E3B341" : "#F85149");
-
-            IsChecked = true;
-
-            ((AsyncRelayCommand)UninstallDriverCommand).NotifyCanExecuteChanged();
-        }
-        catch (Exception ex)
-        {
-            _logService.Error($"Driver check failed: {ex.Message}");
-            StatusText  = "Check failed";
-            StatusColor = "#F85149";
-        }
-        finally
-        {
-            IsBusy      = false;
-            BusyMessage = string.Empty;
-        }
-    }
-
-    private async Task InstallDriverAsync()
-    {
-        IsBusy = true;
-        BusyMessage = "Preparing driver...";
-
-        try
-        {
-            bool ok = await _driverService.InstallDriverAsync();
-
-            if (ok)
-            {
-                BusyMessage = "Verifying installation...";
-                await Task.Delay(1500);
-                await CheckDriverAsync();
-                return;
-            }
-            StatusText  = "Install failed";
-            StatusColor = "#E3B341";
-        }
-        catch (Exception ex)
-        {
-            _logService.Error($"Driver install failed: {ex.Message}");
-            StatusText  = "Install failed";
-            StatusColor = "#F85149";
-        }
-        finally
-        {
-            IsBusy      = false;
-            BusyMessage = string.Empty;
-        }
-    }
-
-    private async Task UninstallDriverAsync()
-    {
-        IsBusy = true;
-        BusyMessage = "Removing driver (elevation required)...";
-
-        try
-        {
-            bool ok = await _driverService.UninstallDriverAsync(_infPath);
-
-            if (ok)
-            {
-                BusyMessage = "Verifying removal...";
-                await Task.Delay(1500);
-                await CheckDriverAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logService.Error($"Driver removal failed: {ex.Message}");
-        }
-        finally
-        {
-            IsBusy      = false;
-            BusyMessage = string.Empty;
-        }
+        if (e.PropertyName == nameof(DriverStatusViewModel.IsBusy))
+            _checkBothCommand.NotifyCanExecuteChanged();
     }
 }

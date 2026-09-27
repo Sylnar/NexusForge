@@ -15,7 +15,7 @@ public class AppSettings
     public int FlashTimeoutSeconds { get; set; } = 300;
 
     /// <summary>
-    /// Firmware file picked last time, restored on the Flash tab at startup.
+    /// Firmware file picked last time, restored on the Board and Flash page at startup.
     /// Persisted as plain text next to the crash log (%LocalAppData%\Sylnar).
     /// </summary>
     public string LastFirmwarePath

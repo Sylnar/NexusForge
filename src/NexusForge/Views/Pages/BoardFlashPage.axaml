@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sylnar.ViewModels"
+             xmlns:ctrl="using:Sylnar.Views.Controls"
+             x:Class="Sylnar.Views.Pages.BoardFlashPage"
+             x:DataType="vm:MainViewModel">
+  <DockPanel>
+
+    <Border DockPanel.Dock="Top" Classes="page-header">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="1" VerticalAlignment="Center">
+          <TextBlock Classes="h1" Text="Board &amp; Flash" />
+          <TextBlock Classes="sub" Text="Detect the FPGA, copy its DNA, write firmware" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="primary" Margin="12,0,0,0" VerticalAlignment="Center"
+                Command="{Binding BoardInfo.DetectBoardCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <ctrl:StrokeIcon Data="{StaticResource IconRefresh}" Width="14" Height="14" StrokeThickness="2.2" />
+            <TextBlock Text="{Binding BoardInfo.DetectButtonText}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!-- Fills the space; scrolls only when the window is shorter than the cards -->
+    <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <Border Padding="16" MinHeight="{Binding #Scroller.Bounds.Height}">
+        <Grid ColumnDefinitions="372,12,*">
+          <ctrl:BoardInfoPanel Grid.Column="0" DataContext="{Binding BoardInfo}" />
+          <ctrl:FlashPanel Grid.Column="2" DataContext="{Binding Flash}" />
+        </Grid>
+      </Border>
+    </ScrollViewer>
+
+  </DockPanel>
+</UserControl>

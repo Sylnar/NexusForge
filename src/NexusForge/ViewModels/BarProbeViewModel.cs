@@ -22,12 +22,17 @@ public class BarProbeViewModel : BaseViewModel
     // State
     private bool _isProbing;
     private bool _isPolling;
-    private string _lastReadHex = "—";
-    private string _lastReadParsed = "—";
     private string _statusText = "Idle";
-    private string _statusColor = "#6E7681";
+    private Tone _statusTone = Tone.Neutral;
     private long _pollSamples;
     private CancellationTokenSource? _pollCts;
+    private bool _devicesRequested;
+
+    // Last read
+    private string _lastReadInfo = "Nothing read yet";
+    private string _lastReadError = "";
+    private string _decodedText = "";
+    private PciBarRow? _selectedBar;
 
     public string AddressHex
     {
@@ -59,8 +64,7 @@ public class BarProbeViewModel : BaseViewModel
         set
         {
             SetProperty(ref _isProbing, value);
-            ((AsyncRelayCommand)ReadOnceCommand).NotifyCanExecuteChanged();
-            ((AsyncRelayCommand)StartPollCommand).NotifyCanExecuteChanged();
+            NotifyCommands();
         }
     }
 
@@ -70,22 +74,9 @@ public class BarProbeViewModel : BaseViewModel
         set
         {
             SetProperty(ref _isPolling, value);
-            ((AsyncRelayCommand)ReadOnceCommand).NotifyCanExecuteChanged();
-            ((AsyncRelayCommand)StartPollCommand).NotifyCanExecuteChanged();
-            ((RelayCommand)StopPollCommand).NotifyCanExecuteChanged();
+            NotifyCommands();
+            OnPropertyChanged(nameof(SamplesText));
         }
-    }
-
-    public string LastReadHex
-    {
-        get => _lastReadHex;
-        set => SetProperty(ref _lastReadHex, value);
-    }
-
-    public string LastReadParsed
-    {
-        get => _lastReadParsed;
-        set => SetProperty(ref _lastReadParsed, value);
     }
 
     public string StatusText
@@ -94,16 +85,84 @@ public class BarProbeViewModel : BaseViewModel
         set => SetProperty(ref _statusText, value);
     }
 
-    public string StatusColor
+    public Tone StatusTone
     {
-        get => _statusColor;
-        set => SetProperty(ref _statusColor, value);
+        get => _statusTone;
+        set => SetProperty(ref _statusTone, value);
     }
 
     public long PollSamples
     {
         get => _pollSamples;
-        set => SetProperty(ref _pollSamples, value);
+        set
+        {
+            if (SetProperty(ref _pollSamples, value))
+                OnPropertyChanged(nameof(SamplesText));
+        }
+    }
+
+    public string SamplesText => IsPolling || PollSamples > 0 ? $"{PollSamples:N0} samples logged" : "";
+
+    // ── Last read ───────────────────────────────────────────────────────────
+
+    /// <summary>"0x0000000000100000 · 16 B".</summary>
+    public string LastReadInfo
+    {
+        get => _lastReadInfo;
+        private set => SetProperty(ref _lastReadInfo, value);
+    }
+
+    public ObservableCollection<HexRow> HexRows { get; } = new();
+
+    public ObservableCollection<DwordCell> Dwords { get; } = new();
+
+    /// <summary>Decoded PCIe config header (config-space reads only).</summary>
+    public string DecodedText
+    {
+        get => _decodedText;
+        private set
+        {
+            if (SetProperty(ref _decodedText, value))
+                OnPropertyChanged(nameof(HasDecoded));
+        }
+    }
+
+    public bool HasDecoded => !string.IsNullOrEmpty(DecodedText);
+
+    public bool HasDwords => Dwords.Count > 0;
+
+    public string LastReadError
+    {
+        get => _lastReadError;
+        private set
+        {
+            if (SetProperty(ref _lastReadError, value))
+                OnPropertyChanged(nameof(HasLastReadError));
+        }
+    }
+
+    public bool HasLastReadError => !string.IsNullOrEmpty(LastReadError);
+
+    public bool HasRead => HexRows.Count > 0;
+
+    public bool HasNoRead => HexRows.Count == 0 && !HasLastReadError;
+
+    // ── PCIe devices ────────────────────────────────────────────────────────
+
+    /// <summary>One row per memory BAR of each host PCIe device.</summary>
+    public ObservableCollection<PciBarRow> Devices { get; } = new();
+
+    public bool HasDevices => Devices.Count > 0;
+
+    /// <summary>Picking a row copies its BAR start into Address.</summary>
+    public PciBarRow? SelectedBar
+    {
+        get => _selectedBar;
+        set
+        {
+            if (SetProperty(ref _selectedBar, value) && value != null)
+                AddressHex = value.Start.ToString("X", CultureInfo.InvariantCulture);
+        }
     }
 
     public ICommand ReadOnceCommand        { get; }
@@ -112,9 +171,6 @@ public class BarProbeViewModel : BaseViewModel
     public ICommand TestConnectionCommand  { get; }
     public ICommand ReadFpgaCfgCommand     { get; }
     public ICommand EnumerateDevicesCommand { get; }
-
-    /// <summary>One line per device found, formatted for the UI list.</summary>
-    public ObservableCollection<string> DeviceList { get; } = new();
 
     public BarProbeViewModel(BarProbeService probe, PciEnumService pciEnum, LogService log)
     {
@@ -130,23 +186,40 @@ public class BarProbeViewModel : BaseViewModel
         EnumerateDevicesCommand = new AsyncRelayCommand(EnumerateDevicesAsync, () => !IsProbing && !IsPolling);
     }
 
+    /// <summary>First visit to the page: list the host's PCIe devices (a WMI query, no DMA).</summary>
+    public void OnShown()
+    {
+        if (_devicesRequested) return;
+        _devicesRequested = true;
+        if (EnumerateDevicesCommand.CanExecute(null))
+            EnumerateDevicesCommand.Execute(null);
+    }
+
+    private void NotifyCommands()
+    {
+        ((AsyncRelayCommand)ReadOnceCommand).NotifyCanExecuteChanged();
+        ((AsyncRelayCommand)StartPollCommand).NotifyCanExecuteChanged();
+        ((RelayCommand)StopPollCommand).NotifyCanExecuteChanged();
+        ((AsyncRelayCommand)TestConnectionCommand).NotifyCanExecuteChanged();
+        ((AsyncRelayCommand)ReadFpgaCfgCommand).NotifyCanExecuteChanged();
+        ((AsyncRelayCommand)EnumerateDevicesCommand).NotifyCanExecuteChanged();
+    }
+
     private async Task TestConnectionAsync()
     {
         IsProbing = true;
-        SetStatus("Testing FPGA link (read RAM at 0x100000)...", "#58A6FF");
+        SetStatus("Testing FPGA link (read RAM at 0x100000)...", Tone.Info);
         try
         {
             var data = await Task.Run(() => _probe.TestConnection());
-            LastReadHex = ToHex(data);
-            LastReadParsed = ParseAsDwords(data);
-            SetStatus("Link OK: read 16 bytes from system RAM at 0x100000", "#3FB950");
+            ShowRead(0x100000, data, decoded: null);
+            SetStatus("Link OK: read 16 bytes from system RAM at 0x100000", Tone.Ok);
             _log.Info("BarProbe: link test passed");
         }
         catch (Exception ex)
         {
-            LastReadHex = "(test failed)";
-            LastReadParsed = ex.Message;
-            SetStatus("Link test failed - check FTDI driver / FPGA / firmware", "#F85149");
+            ShowReadError("Link test failed", ex.Message);
+            SetStatus("Link test failed - check FTDI driver / FPGA / firmware", Tone.Danger);
             _log.Error($"BarProbe link test failed: {ex.Message}");
         }
         finally
@@ -158,20 +231,18 @@ public class BarProbeViewModel : BaseViewModel
     private async Task ReadFpgaCfgAsync()
     {
         IsProbing = true;
-        SetStatus("Reading FPGA PCIe config space...", "#58A6FF");
+        SetStatus("Reading FPGA PCIe config space...", Tone.Info);
         try
         {
             var data = await Task.Run(() => _probe.ReadFpgaConfigSpace());
-            LastReadHex = ToHex(data);
-            LastReadParsed = ParseConfigSpace(data);
-            SetStatus($"Read {data.Length} B of FPGA config space (Type 0 cfg TLPs, no P2P needed)", "#3FB950");
+            ShowRead(null, data, ParseConfigSpace(data));
+            SetStatus($"Read {data.Length} B of FPGA config space (Type 0 cfg TLPs, no P2P needed)", Tone.Ok);
             _log.Info($"BarProbe: read {data.Length} B FPGA config space");
         }
         catch (Exception ex)
         {
-            LastReadHex = "(config read failed)";
-            LastReadParsed = ex.Message;
-            SetStatus("FPGA config read failed", "#F85149");
+            ShowReadError("Config read failed", ex.Message);
+            SetStatus("FPGA config read failed", Tone.Danger);
             _log.Error($"BarProbe FPGA config read failed: {ex.Message}");
         }
         finally
@@ -183,12 +254,11 @@ public class BarProbeViewModel : BaseViewModel
     private async Task EnumerateDevicesAsync()
     {
         IsProbing = true;
-        SetStatus("Enumerating PCIe devices via WMI...", "#58A6FF");
+        SetStatus("Listing PCIe devices via WMI...", Tone.Info);
         try
         {
             var list = await Task.Run(() => _pciEnum.Enumerate());
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => DeviceList.Clear());
-            int withMem = 0;
+            var rows = new List<PciBarRow>();
             foreach (var d in list)
             {
                 foreach (var b in d.Bars)
@@ -196,17 +266,21 @@ public class BarProbeViewModel : BaseViewModel
                     var sizeStr = b.Size >= 1024 * 1024
                         ? $"{b.Size / (1024 * 1024)} MB"
                         : (b.Size >= 1024 ? $"{b.Size / 1024} KB" : $"{b.Size} B");
-                    var line = $"VID:{d.Vendor} DID:{d.Device}  0x{b.Start:X8}..0x{b.End:X8} ({sizeStr})  {d.Name}";
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => DeviceList.Add(line));
-                    withMem++;
+                    rows.Add(new PciBarRow(d.Name, $"{d.Vendor}:{d.Device}", b.Start, b.End, sizeStr));
                 }
             }
-            SetStatus($"Found {list.Count} PCIe devices, {withMem} memory BARs (click an entry to copy address)", "#3FB950");
-            _log.Info($"BarProbe: enumerated {list.Count} PCIe devices, {withMem} BARs");
+
+            Devices.Clear();
+            foreach (var row in rows)
+                Devices.Add(row);
+            OnPropertyChanged(nameof(HasDevices));
+
+            SetStatus($"Found {list.Count} PCIe devices, {rows.Count} memory BARs", Tone.Ok);
+            _log.Info($"BarProbe: enumerated {list.Count} PCIe devices, {rows.Count} BARs");
         }
         catch (Exception ex)
         {
-            SetStatus("Enumeration failed", "#F85149");
+            SetStatus("Listing PCIe devices failed", Tone.Danger);
             _log.Error($"BarProbe enumeration failed: {ex.Message}");
         }
         finally
@@ -221,20 +295,18 @@ public class BarProbeViewModel : BaseViewModel
             return;
 
         IsProbing = true;
-        SetStatus($"Reading 0x{addr:X16} ({len} bytes)...", "#58A6FF");
+        SetStatus($"Reading 0x{addr:X16} ({len} bytes)...", Tone.Info);
         try
         {
             var data = await Task.Run(() => _probe.ReadOnce(addr, len));
-            LastReadHex = ToHex(data);
-            LastReadParsed = ParseAsDwords(data);
-            SetStatus($"Read OK at 0x{addr:X16}", "#3FB950");
+            ShowRead(addr, data, decoded: null);
+            SetStatus($"Read OK at 0x{addr:X16}", Tone.Ok);
             _log.Info($"BarProbe: read {data.Length} B at 0x{addr:X16}");
         }
         catch (Exception ex)
         {
-            LastReadHex = "(read failed)";
-            LastReadParsed = ex.Message;
-            SetStatus("Read failed", "#F85149");
+            ShowReadError($"Read failed at 0x{addr:X16}", ex.Message);
+            SetStatus("Read failed", Tone.Danger);
             _log.Error($"BarProbe read failed: {ex.Message}");
         }
         finally
@@ -257,7 +329,7 @@ public class BarProbeViewModel : BaseViewModel
 
         IsPolling = true;
         PollSamples = 0;
-        SetStatus($"Polling -> {Path.GetFileName(path)}", "#58A6FF");
+        SetStatus($"Polling -> {Path.GetFileName(path)}", Tone.Info);
         _log.Info($"BarProbe poll start: addr=0x{addr:X16} len={len} period={period}ms log={path}");
 
         var cts = new CancellationTokenSource();
@@ -306,7 +378,7 @@ public class BarProbeViewModel : BaseViewModel
         cts.Dispose();
 
         IsPolling = false;
-        SetStatus($"Poll stopped. Samples={PollSamples}, file={Path.GetFileName(path)}", "#3FB950");
+        SetStatus($"Poll stopped. Samples={PollSamples}, file={Path.GetFileName(path)}", Tone.Ok);
         _log.Info($"BarProbe poll stopped: {PollSamples} samples in {path}");
     }
 
@@ -316,13 +388,67 @@ public class BarProbeViewModel : BaseViewModel
         _log.Info("BarProbe stop requested");
     }
 
-    private void SetStatus(string text, string color)
+    private void SetStatus(string text, Tone tone)
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            StatusText  = text;
-            StatusColor = color;
+            StatusText = text;
+            StatusTone = tone;
         });
+    }
+
+    // ---- last-read display -------------------------------------------------
+
+    /// <summary>Shows a successful read: hex rows plus DWORDs, or the decoded config header.</summary>
+    private void ShowRead(ulong? address, byte[] data, string? decoded)
+    {
+        LastReadError = "";
+        LastReadInfo = address is { } a
+            ? $"0x{a:X16} · {data.Length} B"
+            : $"FPGA config space · {data.Length} B";
+
+        HexRows.Clear();
+        var offsetFormat = data.Length > 0x100 ? "X3" : "X2";
+        for (int i = 0; i < data.Length; i += 16)
+        {
+            var bytes = new StringBuilder(47);
+            for (int j = i; j < Math.Min(i + 16, data.Length); j++)
+            {
+                if (j > i) bytes.Append(' ');
+                bytes.Append(data[j].ToString("X2", CultureInfo.InvariantCulture));
+            }
+            HexRows.Add(new HexRow("+" + i.ToString(offsetFormat, CultureInfo.InvariantCulture), bytes.ToString()));
+        }
+
+        Dwords.Clear();
+        DecodedText = decoded ?? "";
+        if (decoded == null && data.Length % 4 == 0)
+        {
+            for (int i = 0; i < data.Length; i += 4)
+            {
+                uint dw = BitConverter.ToUInt32(data, i);
+                Dwords.Add(new DwordCell($"{dw:X8}", $"+0x{i:X3}: 0x{dw:X8} ({dw})"));
+            }
+        }
+
+        RaiseLastReadChanged();
+    }
+
+    private void ShowReadError(string title, string message)
+    {
+        LastReadInfo = title;
+        LastReadError = message;
+        HexRows.Clear();
+        Dwords.Clear();
+        DecodedText = "";
+        RaiseLastReadChanged();
+    }
+
+    private void RaiseLastReadChanged()
+    {
+        OnPropertyChanged(nameof(HasRead));
+        OnPropertyChanged(nameof(HasDwords));
+        OnPropertyChanged(nameof(HasNoRead));
     }
 
     // ---- parsing helpers ---------------------------------------------------
@@ -330,13 +456,17 @@ public class BarProbeViewModel : BaseViewModel
     private bool TryParseAddress(string s, out ulong addr)
     {
         addr = 0;
-        if (string.IsNullOrWhiteSpace(s)) return false;
+        if (string.IsNullOrWhiteSpace(s))
+        {
+            SetStatus("Enter an address first (hex, e.g. 100000), or pick a PCIe device", Tone.Warn);
+            return false;
+        }
         var trim = s.Trim();
         if (trim.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             trim = trim[2..];
         if (!ulong.TryParse(trim, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out addr))
         {
-            SetStatus("Address must be hex (e.g. DCC001F0 or 0xDCC001F0)", "#F85149");
+            SetStatus("Address must be hex (e.g. DCC001F0 or 0xDCC001F0)", Tone.Danger);
             return false;
         }
         return true;
@@ -347,7 +477,7 @@ public class BarProbeViewModel : BaseViewModel
         len = 0;
         if (!uint.TryParse(s, out len) || len == 0 || len > 4096)
         {
-            SetStatus("Length must be 1..4096 bytes", "#F85149");
+            SetStatus("Length must be 1..4096 bytes", Tone.Danger);
             return false;
         }
         return true;
@@ -358,22 +488,10 @@ public class BarProbeViewModel : BaseViewModel
         period = 0;
         if (!int.TryParse(s, out period) || period < 10 || period > 60_000)
         {
-            SetStatus("Period must be 10..60000 ms", "#F85149");
+            SetStatus("Period must be 10..60000 ms", Tone.Danger);
             return false;
         }
         return true;
-    }
-
-    private static string ToHex(byte[] data)
-    {
-        var sb = new System.Text.StringBuilder(data.Length * 3);
-        for (int i = 0; i < data.Length; i++)
-        {
-            sb.Append(data[i].ToString("X2"));
-            if (i + 1 < data.Length) sb.Append(' ');
-            if ((i + 1) % 16 == 0 && i + 1 < data.Length) sb.AppendLine();
-        }
-        return sb.ToString();
     }
 
     private static string ParseConfigSpace(byte[] data)
@@ -410,19 +528,6 @@ public class BarProbeViewModel : BaseViewModel
             sb.AppendLine();
             sb.AppendLine($"Sub VID/DID: 0x{subVid:X4}:0x{subDid:X4}");
             sb.AppendLine($"CapPtr     : 0x{capPtr:X2}");
-        }
-        return sb.ToString().TrimEnd();
-    }
-
-    private static string ParseAsDwords(byte[] data)
-    {
-        if (data.Length % 4 != 0)
-            return "(length not 4-byte aligned)";
-        var sb = new System.Text.StringBuilder();
-        for (int i = 0; i < data.Length; i += 4)
-        {
-            uint dw = BitConverter.ToUInt32(data, i);
-            sb.AppendLine($"+0x{i:X3}: 0x{dw:X8}  ({dw})");
         }
         return sb.ToString().TrimEnd();
     }

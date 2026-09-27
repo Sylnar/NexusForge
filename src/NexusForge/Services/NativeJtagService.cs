@@ -206,6 +206,7 @@ public class NativeJtagService : IDisposable
         boardInfo.Package = _settings.FpgaPart.StartsWith(
             deviceName.Split(' ')[0], StringComparison.OrdinalIgnoreCase) ? _settings.FpgaPart : "—";
         boardInfo.JtagCable = "WCH CH347 (USB JTAG)";
+        boardInfo.Bridge = Path.GetFileNameWithoutExtension(GetBscanProxy(idcodeMasked) ?? string.Empty);
         boardInfo.DetectedAt = DateTime.Now;
 
         _logService.Info("Reading Device DNA...");
@@ -648,7 +649,7 @@ if ($dev) {{
                 sectorsTotal = last + 1;
                 erasePhase = true;
                 _logService.Info($"Erasing sectors {first}–{last} ({sectorsTotal} total)...");
-                progress?.Report(new FlashProgress { Stage = "Erasing", Percentage = 20, Message = $"Erasing 0/{sectorsTotal} sectors..." });
+                progress?.Report(new FlashProgress { Stage = "Erasing", Percentage = 20, Message = $"Erasing sector 0 / {sectorsTotal}" });
             }
 
             var sectorMatch = Regex.Match(t, @"sector\s+(\d+)\s+took\s+(\d+)\s*ms", RegexOptions.IgnoreCase);
@@ -656,7 +657,6 @@ if ($dev) {{
             {
                 erasePhase = true;
                 int sectorNum = int.Parse(sectorMatch.Groups[1].Value);
-                int ms = int.Parse(sectorMatch.Groups[2].Value);
                 sectorsErased = sectorNum + 1;
 
                 int total = sectorsTotal > 0 ? sectorsTotal : totalSectorsEstimate;
@@ -668,7 +668,7 @@ if ($dev) {{
                 {
                     Stage = "Erasing",
                     Percentage = pct,
-                    Message = $"Erasing sector {sectorsErased}/{total} ({ms}ms)..."
+                    Message = $"Erasing sector {sectorsErased} / {total}"
                 });
             }
 
@@ -702,7 +702,7 @@ if ($dev) {{
                         {
                             Stage = "Writing",
                             Percentage = pct,
-                            Message = $"Writing {kbWritten}/{kbTotal} KB..."
+                            Message = $"Writing {kbWritten:N0} / {kbTotal:N0} KB"
                         });
                     }
                 }

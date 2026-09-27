@@ -34,7 +34,7 @@ public class BoardDetectionService
             {
                 // Detection runs through the bundled OpenOCD + CH347, not FTDI D2XX.
                 _logService.Error("A required JTAG library could not be loaded.");
-                _logService.Warn("Install the CH347 driver from the Drivers tab, replug the USB cable, and retry.");
+                _logService.Warn("Install the CH347 driver on the Drivers page, replug the USB cable, and retry.");
                 return new BoardInfo();
             }
             catch (Exception ex)

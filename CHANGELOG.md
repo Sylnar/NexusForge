@@ -1,6 +1,40 @@
 # Changelog
 
-## v1.1.28 — 2026-09-25
+## Unreleased
+
+### New
+- **Compact redesign** (1100×680 by default, resizable down to 1000×560)
+  - Sidebar navigation replaces the tabs: Board & Flash, Drivers, DMA Test,
+    BAR Probe. Its Hardware card shows the CH347 and FT601 driver status,
+    checked in the background at launch, and the footer shows the update
+    check result and whether Sylnar runs as Administrator.
+  - The log is a dock under every page, with All / Warnings / Errors filters,
+    a line count, Copy (copies what the filter shows) and a collapse button.
+  - New type: IBM Plex Sans for the interface, JetBrains Mono for IDs,
+    addresses and the log (both SIL OFL, bundled in `Assets/Fonts`).
+- **Board & Flash:** board and firmware side by side. The board card shows
+  the part, family, detection time, IDCODE, package, cable and the BSCAN
+  bridge used for flashing; the DNA is grouped in fours and Copy confirms
+  with "Copied". The firmware card shows the flash mode (SPI flash or SRAM),
+  a Bridge · Erase · Write · Done step bar, the live percentage and the
+  elapsed time. A `.bin` or `.bit` file can be dropped on the card.
+- **Drivers:** CH347 and FT601 drivers side by side (the FT601 driver moved
+  here from the DMA tab), each with its device, VID/PID, version, driver,
+  a plain-language status and Check / Install / Reinstall / Uninstall.
+  "Check both" checks the two at once.
+- **DMA Test:** test type is a segmented control next to Run test. Results
+  show a coloured rating banner, six metric tiles (labelled for the stress
+  test's own figures) and the rating scale with the reached level lit.
+  The memory-map card shows the cache age and where the map is saved.
+- **BAR Probe:** the PCIe device list loads when the page is first opened;
+  clicking a row copies its BAR start into Address. Last read shows the hex
+  dump with offsets, DWORDs as tiles, or the decoded config header.
+
+### Changed
+- Cancel is only enabled while it can still take effect (before the SPI
+  erase starts), and says so next to the button.
+- Splash, update and shutdown windows use the new colours; the update
+  window's logo letter is now "S".
 
 ### Important: updating from v1.1.27 or older
 Versions up to v1.1.27 check `NexusForge-dev/NexusForge` for updates, not

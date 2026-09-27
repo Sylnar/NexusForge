@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sylnar.ViewModels"
+             xmlns:ctrl="using:Sylnar.Views.Controls"
+             xmlns:h="using:Sylnar.Helpers"
+             x:Class="Sylnar.Views.Controls.Sidebar"
+             x:DataType="vm:MainViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.group">
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="LetterSpacing" Value="0.84" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="{StaticResource BgShellBrush}"
+          BorderBrush="{StaticResource LineInsetBrush}"
+          BorderThickness="0,0,1,0"
+          Padding="10,14,10,12">
+    <DockPanel>
+
+      <!-- ── Brand ── -->
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="6,2,6,18">
+        <Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource AccentBrush}">
+          <TextBlock Text="S" FontSize="16" FontWeight="Bold"
+                     Foreground="{StaticResource OnAccentBrush}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Spacing="1" VerticalAlignment="Center">
+          <TextBlock Text="SYLNAR" FontSize="14" FontWeight="Bold" LetterSpacing="0.84" />
+          <TextBlock Text="{x:Static h:VersionInfo.WithV}" Classes="mono caption" />
+        </StackPanel>
+      </StackPanel>
+
+      <!-- ── Footer: update status · privilege ── -->
+      <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto" Margin="6,0">
+        <TextBlock Text="{Binding UpdateStatusText}" Classes="caption" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="1" Text="{Binding PrivilegeText}" Classes="mono caption tone"
+                   ctrl:ToneClass.Tone="{Binding PrivilegeTone}" Margin="8,0,0,0" />
+      </Grid>
+
+      <!-- ── Hardware: live driver status of both USB links ── -->
+      <Border DockPanel.Dock="Bottom" Margin="0,0,0,18" Padding="10" CornerRadius="8"
+              Background="{StaticResource BgSubtleBrush}"
+              BorderBrush="{StaticResource LineInsetBrush}" BorderThickness="1">
+        <StackPanel Spacing="8">
+          <TextBlock Text="HARDWARE" Classes="overline group" />
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Ellipse Classes="dot" ctrl:ToneClass.Tone="{Binding Driver.Ch347.SidebarTone}" Margin="0,0,8,0" />
+            <TextBlock Grid.Column="1" Text="CH347 JTAG" FontSize="12"
+                       Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2" Text="{Binding Driver.Ch347.SidebarText}" FontSize="11" Classes="tone"
+                       ctrl:ToneClass.Tone="{Binding Driver.Ch347.SidebarTone}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Ellipse Classes="dot" ctrl:ToneClass.Tone="{Binding Driver.Ft601.SidebarTone}" Margin="0,0,8,0" />
+            <TextBlock Grid.Column="1" Text="FT601 Data" FontSize="12"
+                       Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2" Text="{Binding Driver.Ft601.SidebarText}" FontSize="11" Classes="tone"
+                       ctrl:ToneClass.Tone="{Binding Driver.Ft601.SidebarTone}" VerticalAlignment="Center" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- ── Navigation ── -->
+      <StackPanel>
+        <TextBlock Text="WORKSPACE" Classes="overline group" Margin="10,0,10,6" />
+        <ListBox Classes="nav" SelectedIndex="{Binding SelectedPageIndex}"
+                 AutomationProperties.Name="Sections">
+          <ListBoxItem>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ctrl:StrokeIcon Data="{StaticResource IconChip}" />
+              <TextBlock Text="Board &amp; Flash" VerticalAlignment="Center" />
+            </StackPanel>
+          </ListBoxItem>
+          <ListBoxItem>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ctrl:StrokeIcon Data="{StaticResource IconPlug}" />
+              <TextBlock Text="Drivers" VerticalAlignment="Center" />
+            </StackPanel>
+          </ListBoxItem>
+          <ListBoxItem>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ctrl:StrokeIcon Data="{StaticResource IconGauge}" />
+              <TextBlock Text="DMA Test" VerticalAlignment="Center" />
+            </StackPanel>
+          </ListBoxItem>
+          <ListBoxItem>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ctrl:StrokeIcon Data="{StaticResource IconScan}" />
+              <TextBlock Text="BAR Probe" VerticalAlignment="Center" />
+            </StackPanel>
+          </ListBoxItem>
+        </ListBox>
+      </StackPanel>
+
+    </DockPanel>
+  </Border>
+</UserControl>

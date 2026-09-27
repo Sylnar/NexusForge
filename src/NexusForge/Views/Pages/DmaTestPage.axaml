@@ -1,0 +1,258 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sylnar.ViewModels"
+             xmlns:ctrl="using:Sylnar.Views.Controls"
+             x:Class="Sylnar.Views.Pages.DmaTestPage"
+             x:DataType="vm:DmaTestViewModel">
+
+  <UserControl.Styles>
+    <!-- Rating banner, tinted by the rating's tone -->
+    <Style Selector="Border.rating">
+      <Setter Property="Padding" Value="16,14" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="{StaticResource BgInsetBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource LineInsetBrush}" />
+    </Style>
+    <Style Selector="Border.rating TextBlock.label">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="LetterSpacing" Value="0.66" />
+      <Setter Property="Foreground" Value="{StaticResource TextSubtleBrush}" />
+    </Style>
+    <Style Selector="Border.rating TextBlock.rating">
+      <Setter Property="FontSize" Value="26" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="LetterSpacing" Value="0.52" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Border.rating.ok">
+      <Setter Property="Background" Value="{StaticResource AccentTintBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource AccentLineBrush}" />
+    </Style>
+    <Style Selector="Border.rating.ok TextBlock.label">
+      <Setter Property="Foreground" Value="{StaticResource AccentLabelBrush}" />
+    </Style>
+    <Style Selector="Border.rating.ok TextBlock.rating">
+      <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+    </Style>
+    <Style Selector="Border.rating.info">
+      <Setter Property="Background" Value="{StaticResource InfoTintBrush}" />
+      <Setter Property="BorderBrush" Value="#406CA8FF" />
+    </Style>
+    <Style Selector="Border.rating.info TextBlock.label">
+      <Setter Property="Foreground" Value="#9DBEEB" />
+    </Style>
+    <Style Selector="Border.rating.info TextBlock.rating">
+      <Setter Property="Foreground" Value="{StaticResource InfoBrush}" />
+    </Style>
+    <Style Selector="Border.rating.warn">
+      <Setter Property="Background" Value="{StaticResource WarnTintBrush}" />
+      <Setter Property="BorderBrush" Value="#40F2B84B" />
+    </Style>
+    <Style Selector="Border.rating.warn TextBlock.label">
+      <Setter Property="Foreground" Value="{StaticResource WarnTextBrush}" />
+    </Style>
+    <Style Selector="Border.rating.warn TextBlock.rating">
+      <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
+    </Style>
+    <Style Selector="Border.rating.danger">
+      <Setter Property="Background" Value="{StaticResource DangerTintBrush}" />
+      <Setter Property="BorderBrush" Value="#40F2685C" />
+    </Style>
+    <Style Selector="Border.rating.danger TextBlock.label">
+      <Setter Property="Foreground" Value="{StaticResource DangerTextBrush}" />
+    </Style>
+    <Style Selector="Border.rating.danger TextBlock.rating">
+      <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+    </Style>
+
+    <!-- Rating scale: the reached level lights up in its colour -->
+    <Style Selector="TextBlock.scale">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,0,4,0" />
+      <Setter Property="Foreground" Value="{StaticResource TextSubtleBrush}" />
+    </Style>
+    <Style Selector="TextBlock.scale.hit">
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.scale.acceptable.hit">
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.scale.good.hit">
+      <Setter Property="Foreground" Value="#D9A948" />
+    </Style>
+    <Style Selector="TextBlock.scale.excellent.hit">
+      <Setter Property="Foreground" Value="#6CA8FF" />
+    </Style>
+    <Style Selector="TextBlock.scale.perfect.hit">
+      <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel>
+
+    <!-- ── Header: test type + run ── -->
+    <Border DockPanel.Dock="Top" Classes="page-header">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <StackPanel Spacing="1" VerticalAlignment="Center">
+          <TextBlock Classes="h1" Text="DMA Test" />
+          <TextBlock Classes="sub" Text="Needs the FT601 driver and firmware loaded (flash + cold reboot)"
+                     ToolTip.Tip="Needs the FT601 driver and PCILeech-compatible firmware loaded (flash + cold reboot)" />
+        </StackPanel>
+        <ListBox Grid.Column="1" Classes="segmented" Margin="12,0,0,0"
+                 SelectedIndex="{Binding SelectedTestType}" IsEnabled="{Binding !IsTesting}"
+                 AutomationProperties.Name="Test type">
+          <ListBoxItem Content="Full"
+                       ToolTip.Tip="Process lookup, then latency (4 KB reads) and throughput (16 MB reads)" />
+          <ListBoxItem Content="Latency" ToolTip.Tip="30 seconds of 4 KB random reads: reads/sec and per-read timing" />
+          <ListBoxItem Content="Throughput" ToolTip.Tip="15 seconds of 16 MB sequential reads: sustained MB/s" />
+          <ListBoxItem Content="Stress"
+                       ToolTip.Tip="Long soak mixing 4 KB and 16 MB reads; passes if the DMA path stays stable" />
+        </ListBox>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0"
+                    VerticalAlignment="Center" IsVisible="{Binding IsStressTestSelected}">
+          <NumericUpDown Classes="field" Width="56" Minimum="1" Maximum="60" Increment="1" FormatString="0"
+                         ShowButtonSpinner="False" HorizontalContentAlignment="Center"
+                         Value="{Binding StressMinutes}" IsEnabled="{Binding !IsTesting}"
+                         AutomationProperties.Name="Stress duration in minutes"
+                         ToolTip.Tip="Stress duration, 1 to 60 minutes (type it, or use ↑ ↓ / the mouse wheel)" />
+          <TextBlock Text="min" FontSize="12" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+        <Button Grid.Column="3" Classes="primary" Margin="12,0,0,0" VerticalAlignment="Center"
+                Command="{Binding RunSpeedTestCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <ctrl:StrokeIcon Data="{StaticResource IconPlay}" IsFilled="True" Width="12" Height="12" />
+            <TextBlock Text="{Binding RunButtonText}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <Border Padding="16" MinHeight="{Binding #Scroller.Bounds.Height}">
+        <Grid ColumnDefinitions="*,12,280">
+
+          <!-- ═══ Results ═══ -->
+          <Border Classes="card">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="section" Text="{Binding RunTitle}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="1" Classes="meta" Text="{Binding RunMeta}" Margin="12,0,0,0"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="320" />
+              </Grid>
+
+              <Border Grid.Row="1" Classes="rating" ctrl:ToneClass.Tone="{Binding RatingTone}" Margin="0,14,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Classes="label" Text="RATING" />
+                    <TextBlock Classes="rating" Text="{Binding RatingText}" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Classes="label" Text="STATUS" HorizontalAlignment="Right" />
+                    <TextBlock Text="{Binding StatusSummary}" FontSize="16" FontWeight="SemiBold"
+                               HorizontalAlignment="Right" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+
+              <ProgressBar Grid.Row="2" Classes="thin" Margin="0,10,0,0" Minimum="0" Maximum="100"
+                           Value="{Binding TestPercentage}" IsVisible="{Binding IsTesting}" />
+
+              <ItemsControl Grid.Row="3" Margin="0,14,-8,0" ItemsSource="{Binding Metrics}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <UniformGrid Columns="3" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:MetricTile">
+                    <Border Classes="inset" Padding="12,10" Margin="0,0,8,8">
+                      <StackPanel Spacing="4">
+                        <TextBlock Classes="caption" Text="{Binding Label}" />
+                        <TextBlock Classes="mono" FontSize="18" FontWeight="SemiBold"
+                                   Text="{Binding Value}" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <!-- Latency / throughput scale -->
+              <StackPanel Grid.Row="5" Spacing="6" IsVisible="{Binding ShowSpeedScale}">
+                <Grid ColumnDefinitions="*,*,*,*">
+                  <Border Height="4" CornerRadius="2" Margin="0,0,4,0" Background="#6B7280" />
+                  <Border Grid.Column="1" Height="4" CornerRadius="2" Margin="0,0,4,0" Background="#B98A2E" />
+                  <Border Grid.Column="2" Height="4" CornerRadius="2" Margin="0,0,4,0" Background="#3D7FD9" />
+                  <Border Grid.Column="3" Height="4" CornerRadius="2" Background="#19D3A8" />
+                </Grid>
+                <Grid ColumnDefinitions="*,*,*,*">
+                  <TextBlock Classes="scale acceptable" Classes.hit="{Binding IsScaleAcceptable}"
+                             Text="Acceptable · 3K RPS / 100 MB/s" />
+                  <TextBlock Grid.Column="1" Classes="scale good" Classes.hit="{Binding IsScaleGood}"
+                             Text="Good · 4K / 150" />
+                  <TextBlock Grid.Column="2" Classes="scale excellent" Classes.hit="{Binding IsScaleExcellent}"
+                             Text="Excellent · 6K / 200" />
+                  <TextBlock Grid.Column="3" Classes="scale perfect" Classes.hit="{Binding IsScalePerfect}"
+                             Text="Perfect · 18K / 600" />
+                </Grid>
+              </StackPanel>
+
+              <!-- Stress is graded on staying clean for long enough -->
+              <TextBlock Grid.Row="5" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding ShowStressScale}"
+                         Text="Stress rating: no persistent failures for 5 min or more is Perfect, 2 min Excellent, shorter Good. Any persistent failure is a FAIL." />
+            </Grid>
+          </Border>
+
+          <!-- ═══ Memory map ═══ -->
+          <Border Grid.Column="2" Classes="card">
+            <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto">
+
+              <TextBlock Classes="section" Text="MEMORY MAP" />
+
+              <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+                <Ellipse Classes="dot" Width="8" Height="8" ctrl:ToneClass.Tone="{Binding MmapStateTone}" />
+                <TextBlock Text="{Binding MmapStateText}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding MmapAgeText}" FontSize="12" Foreground="{StaticResource TextSubtleBrush}"
+                           VerticalAlignment="Center" />
+              </StackPanel>
+
+              <TextBlock Grid.Row="2" Margin="0,12,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap"
+                         Foreground="{StaticResource TextMutedBrush}"
+                         Text="Needed for zero-fail tests on systems with IOMMU or VBS enabled. Regenerate after changing RAM or BIOS settings." />
+
+              <StackPanel Grid.Row="3" Margin="0,12,0,0" Spacing="6" VerticalAlignment="Top">
+                <ProgressBar Classes="thin" IsIndeterminate="True" IsVisible="{Binding IsMmapBusy}" />
+                <TextBlock Classes="tone" ctrl:ToneClass.Tone="{Binding MmapStatusTone}" FontSize="11.5"
+                           TextWrapping="Wrap" Text="{Binding MmapStatus}"
+                           IsVisible="{Binding MmapStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Classes="tone" ctrl:ToneClass.Tone="{Binding DeployStatusTone}" FontSize="11.5"
+                           TextWrapping="Wrap" Text="{Binding DeployStatus}"
+                           IsVisible="{Binding DeployStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              </StackPanel>
+
+              <Border Grid.Row="4" Classes="inset" Padding="12,10" Margin="0,12,0,0">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="caption" Text="Saved to" />
+                  <TextBlock Classes="mono" FontSize="11.5" FontWeight="Medium" TextWrapping="Wrap"
+                             Foreground="{StaticResource TextSecondaryBrush}" Text="{Binding MmapPathText}" />
+                </StackPanel>
+              </Border>
+
+              <Button Grid.Row="5" Classes="secondary" Margin="0,12,0,0" HorizontalAlignment="Stretch"
+                      Content="{Binding GenerateMmapLabel}" Command="{Binding GenerateMmapCommand}"
+                      ToolTip.Tip="Probes physical memory in 2 MB blocks (3-5 s) and saves a verified map" />
+              <Button Grid.Row="6" Classes="secondary" Margin="0,12,0,0" HorizontalAlignment="Stretch"
+                      Content="Deploy to tools" Command="{Binding DeployToToolsCommand}"
+                      ToolTip.Tip="Finds DMA tool folders on this PC and updates their leechcore / FTDI DLLs and mmap.txt" />
+            </Grid>
+          </Border>
+
+        </Grid>
+      </Border>
+    </ScrollViewer>
+
+  </DockPanel>
+</UserControl>

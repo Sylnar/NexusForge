@@ -26,8 +26,12 @@ public class AutoUpdateService
         _settings = settings;
     }
 
+    /// <summary>What the last check concluded. Any early exit counts as Failed.</summary>
+    public UpdateCheckOutcome LastOutcome { get; private set; } = UpdateCheckOutcome.Pending;
+
     public async Task<bool> CheckAndApplyUpdateAsync(IProgress<UpdateProgress>? progress = null)
     {
+        LastOutcome = UpdateCheckOutcome.Failed;
         try
         {
             _logService.Info("Checking for updates...");
@@ -63,10 +67,13 @@ public class AutoUpdateService
             if (rv <= lv)
             {
                 _logService.Info($"Sylnar is up to date (v{_settings.Version}).");
+                LastOutcome = UpdateCheckOutcome.UpToDate;
                 // We're current: clear any stuck-update bookkeeping for a clean slate.
                 ClearUpdateAttempts();
                 return false;
             }
+
+            LastOutcome = UpdateCheckOutcome.UpdateAvailable;
 
             // Loop-guard: if this exact target has already failed to apply repeatedly,
             // give up and let the app open normally instead of relaunch-looping forever.

@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sylnar.ViewModels"
+             xmlns:svc="using:Sylnar.Services"
+             xmlns:ctrl="using:Sylnar.Views.Controls"
+             x:Class="Sylnar.Views.Controls.LogDock"
+             x:DataType="vm:MainViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.line">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+      <Setter Property="FontSize" Value="11.5" />
+      <Setter Property="LineHeight" Value="20" />
+    </Style>
+    <!-- Divider under the toolbar only while the lines are showing -->
+    <Style Selector="Border.toolbar.open">
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <!-- Chevron points up while the log is collapsed -->
+    <Style Selector="ctrl|StrokeIcon.chevron">
+      <Setter Property="RenderTransform" Value="none" />
+    </Style>
+    <Style Selector="ctrl|StrokeIcon.chevron.up">
+      <Setter Property="RenderTransform" Value="rotate(180deg)" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="{StaticResource BgShellBrush}"
+          BorderBrush="{StaticResource LineInsetBrush}"
+          BorderThickness="0,1,0,0">
+    <DockPanel>
+
+      <!-- ── Toolbar ── -->
+      <Border DockPanel.Dock="Top" Height="36" Padding="16,0,12,0"
+              Classes="toolbar" Classes.open="{Binding IsLogExpanded}"
+              BorderBrush="{StaticResource LineSoftBrush}">
+        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto">
+          <TextBlock Text="Log" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <Border Grid.Column="1" Margin="10,0,0,0" Padding="7,1" CornerRadius="10"
+                  Background="{StaticResource LineSoftBrush}" VerticalAlignment="Center">
+            <TextBlock Text="{Binding LogCount}" Classes="mono" FontSize="11"
+                       Foreground="{StaticResource TextMutedBrush}" />
+          </Border>
+          <ListBox Grid.Column="2" Classes="segmented sm" Margin="18,0,0,0"
+                   SelectedIndex="{Binding LogFilterIndex}"
+                   AutomationProperties.Name="Filter">
+            <ListBoxItem Content="All" />
+            <ListBoxItem Content="{Binding WarningsFilterLabel}" />
+            <ListBoxItem Content="{Binding ErrorsFilterLabel}" />
+          </ListBox>
+          <Button Grid.Column="4" Classes="ghost" Content="Copy" Command="{Binding CopyLogCommand}"
+                  ToolTip.Tip="Copy the lines shown to the clipboard" Margin="0,0,2,0" />
+          <Button Grid.Column="5" Classes="ghost" Content="Clear" Command="{Binding ClearLogCommand}" Margin="0,0,2,0" />
+          <Button Grid.Column="6" Classes="ghost square" Command="{Binding ToggleLogCommand}"
+                  AutomationProperties.Name="Collapse or expand log"
+                  ToolTip.Tip="Collapse or expand the log">
+            <ctrl:StrokeIcon Classes="chevron" Classes.up="{Binding !IsLogExpanded}"
+                             Data="{StaticResource IconChevronDown}"
+                             Width="14" Height="14" StrokeThickness="2" />
+          </Button>
+        </Grid>
+      </Border>
+
+      <!-- ── Lines ── -->
+      <ListBox x:Name="LogList" Classes="log" Height="135" Padding="16,6"
+               IsVisible="{Binding IsLogExpanded}"
+               ItemsSource="{Binding VisibleLogEntries}"
+               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="svc:LogEntry">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+              <TextBlock Classes="line" Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}"
+                         Foreground="{StaticResource TextFaintBrush}" Margin="0,0,12,0" />
+              <TextBlock Grid.Column="1" Classes="line" Width="40" Margin="0,0,12,0"
+                         Text="{Binding Level}"
+                         Foreground="{Binding Level, Converter={x:Static vm:LogLevelToColorConverter.Instance}}" />
+              <TextBlock Grid.Column="2" Classes="line" Text="{Binding Message}"
+                         Foreground="{StaticResource TextLogBrush}" TextWrapping="Wrap" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+    </DockPanel>
+  </Border>
+</UserControl>

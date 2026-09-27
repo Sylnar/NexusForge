@@ -14,13 +14,13 @@
   <Border CornerRadius="16" ClipToBounds="True">
     <Border.Background>
       <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-        <GradientStop Color="#0D1117" Offset="0"/>
-        <GradientStop Color="#111922" Offset="0.5"/>
-        <GradientStop Color="#0A1628" Offset="1"/>
+        <GradientStop Color="#0D1015" Offset="0"/>
+        <GradientStop Color="#11161C" Offset="0.5"/>
+        <GradientStop Color="#0B0E12" Offset="1"/>
       </LinearGradientBrush>
     </Border.Background>
 
-    <Border BorderBrush="#1E2A3A" BorderThickness="1" CornerRadius="16">
+    <Border BorderBrush="#1E252F" BorderThickness="1" CornerRadius="16">
       <StackPanel Margin="30,28,30,28" Spacing="18" VerticalAlignment="Center">
 
         <!-- Header: logo + title + status -->
@@ -28,21 +28,21 @@
           <Border Width="48" Height="48" CornerRadius="13" VerticalAlignment="Center">
             <Border.Background>
               <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#00D4AA" Offset="0"/>
-                <GradientStop Color="#00A88A" Offset="1"/>
+                <GradientStop Color="#19D3A8" Offset="0"/>
+                <GradientStop Color="#14B994" Offset="1"/>
               </LinearGradientBrush>
             </Border.Background>
-            <Border.BoxShadow>0 4 18 0 #4000D4AA</Border.BoxShadow>
-            <TextBlock Text="N" Foreground="#0A0D14" FontSize="26" FontWeight="Bold"
+            <Border.BoxShadow>0 4 18 0 #4019D3A8</Border.BoxShadow>
+            <TextBlock Text="S" Foreground="#04211A" FontSize="26" FontWeight="Bold"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
 
           <StackPanel VerticalAlignment="Center" Spacing="3">
             <TextBlock Text="Updating Sylnar"
-                       FontSize="17" FontWeight="Bold" Foreground="#E6EDF3" />
+                       FontSize="17" FontWeight="Bold" Foreground="#E7ECF2" />
             <TextBlock Name="StatusText"
                        Text="Preparing update..."
-                       FontSize="11.5" Foreground="#8B949E" />
+                       FontSize="11.5" Foreground="#9AA5B4" />
           </StackPanel>
         </StackPanel>
 
@@ -51,12 +51,12 @@
           <ProgressBar Name="Bar"
                        Minimum="0" Maximum="100" Value="0"
                        Height="6"
-                       Foreground="#00D4AA"
-                       Background="#161B22"
+                       Foreground="#19D3A8"
+                       Background="#1E252F"
                        IsIndeterminate="True" />
           <TextBlock Name="DetailText"
                      Text=""
-                     FontSize="11" Foreground="#6E7681"
+                     FontSize="11" Foreground="#7A8696"
                      HorizontalAlignment="Right" />
         </StackPanel>
 

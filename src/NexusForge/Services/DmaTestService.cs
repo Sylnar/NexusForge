@@ -783,7 +783,7 @@ public class DmaTestService
         }
         else if (useCachedMmap)
         {
-            _log.Warn("No mmap.txt cached - VBS-fenced pages will appear as read failures on IOMMU systems. Use 'Generate mmap' first.");
+            _log.Warn("No mmap.txt cached - VBS-fenced pages will appear as read failures on IOMMU systems. Use 'Generate map' on the DMA Test page first.");
         }
         var args = argList.ToArray();
         var hVMM = VmmNative.VMMDLL_Initialize(args.Length, args);

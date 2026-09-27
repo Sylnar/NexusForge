@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace Sylnar.Views.Controls;
 
-public partial class DriverPanel : UserControl
+public partial class Sidebar : UserControl
 {
-    public DriverPanel()
+    public Sidebar()
     {
         InitializeComponent();
     }

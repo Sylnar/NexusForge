@@ -1,4 +1,7 @@
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows.Input;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Sylnar.Helpers;
 using Sylnar.Models;
@@ -8,9 +11,23 @@ namespace Sylnar.ViewModels;
 
 public class FlashViewModel : BaseViewModel
 {
+    private enum RunState { Idle, Running, Succeeded, Failed, Cancelled }
+
+    private static readonly string[] SpiSteps = { "Bridge", "Erase", "Write", "Done" };
+    private static readonly string[] SramSteps = { "Connect", "Program", "Done" };
+
+    // Stages reported before the programmer process starts. Cancel is honoured
+    // only there: after that, stopping would leave a half-written flash.
+    private static readonly HashSet<string> CancellableStages =
+        new(StringComparer.OrdinalIgnoreCase) { "Starting...", "Initializing", "Detecting" };
+
     private readonly FlashService _flashService;
     private readonly LogService _logService;
     private readonly AppSettings _settings;
+    private readonly AsyncRelayCommand _flashFirmwareCommand;
+    private readonly RelayCommand _cancelFlashCommand;
+    private readonly DispatcherTimer _elapsedTimer;
+    private readonly Stopwatch _stopwatch = new();
 
     private string _firmwarePath = string.Empty;
     private string _firmwareFileName = "No file selected";
@@ -25,6 +42,10 @@ public class FlashViewModel : BaseViewModel
     private bool _hasFlashError;
     private string _flashErrorMessage = string.Empty;
     private CancellationTokenSource? _cts;
+    private RunState _runState = RunState.Idle;
+    private int _activeStep;
+
+    public ObservableCollection<FlashStep> Steps { get; } = new();
 
     public string FirmwarePath
     {
@@ -33,10 +54,18 @@ public class FlashViewModel : BaseViewModel
         {
             if (SetProperty(ref _firmwarePath, value))
             {
-                // A new file makes the previous run's result banner stale.
+                // A new file makes the previous run's result stale.
                 IsFlashComplete = false;
                 HasFlashError = false;
+                SetRunState(RunState.Idle);
                 ValidateFile();
+                ResetSteps();
+                OnPropertyChanged(nameof(HasFile));
+                OnPropertyChanged(nameof(IsBitFile));
+                OnPropertyChanged(nameof(FlashModeText));
+                OnPropertyChanged(nameof(CancelNote));
+                OnPropertyChanged(nameof(FileDetailText));
+                OnPropertyChanged(nameof(FileDetailTone));
             }
         }
     }
@@ -59,7 +88,10 @@ public class FlashViewModel : BaseViewModel
         set
         {
             if (SetProperty(ref _isFileValid, value))
-                (FlashFirmwareCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+            {
+                _flashFirmwareCommand?.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(ProgressText));
+            }
         }
     }
 
@@ -69,23 +101,84 @@ public class FlashViewModel : BaseViewModel
         set => SetProperty(ref _fileValidationMessage, value);
     }
 
+    public bool HasFile => !string.IsNullOrEmpty(FirmwarePath);
+
+    public bool IsBitFile => FirmwarePath.EndsWith(".bit", StringComparison.OrdinalIgnoreCase);
+
+    public string FlashModeText => IsBitFile ? "SRAM · until power-off" : "SPI flash · persistent";
+
+    public string FileDetailText =>
+        !HasFile ? "Drop a .bin or .bit file here, or browse"
+        : IsFileValid ? $"{FileSizeText} · drop a .bin or .bit here, or browse"
+        : FileValidationMessage;
+
+    public Tone FileDetailTone => HasFile && !IsFileValid ? Tone.Warn : Tone.Neutral;
+
+    public string CancelNote => IsBitFile
+        ? "Cancel works until the bitstream starts loading. A .bit load is lost at power-off anyway."
+        : "Cancel works until the SPI erase starts — stopping mid-write would leave the board unbootable.";
+
     public int FlashPercentage
     {
         get => _flashPercentage;
-        set => SetProperty(ref _flashPercentage, value);
+        set
+        {
+            if (SetProperty(ref _flashPercentage, value))
+                OnPropertyChanged(nameof(PercentText));
+        }
     }
+
+    public string PercentText => $"{FlashPercentage}%";
 
     public string FlashStage
     {
         get => _flashStage;
-        set => SetProperty(ref _flashStage, value);
+        set
+        {
+            if (SetProperty(ref _flashStage, value))
+            {
+                OnPropertyChanged(nameof(CanCancel));
+                _cancelFlashCommand?.NotifyCanExecuteChanged();
+            }
+        }
     }
 
     public string FlashMessage
     {
         get => _flashMessage;
-        set => SetProperty(ref _flashMessage, value);
+        set
+        {
+            if (SetProperty(ref _flashMessage, value))
+                OnPropertyChanged(nameof(ProgressText));
+        }
     }
+
+    /// <summary>Status line above the bar: the live stage message while flashing.</summary>
+    public string ProgressText => _runState switch
+    {
+        RunState.Running => FlashMessage,
+        RunState.Succeeded => "Flash complete",
+        RunState.Failed => "Flash failed",
+        RunState.Cancelled => "Flash cancelled",
+        _ => !HasFile ? "No firmware selected" : IsFileValid ? "Ready to flash" : "This file can't be flashed"
+    };
+
+    public Tone ProgressTone => _runState switch
+    {
+        RunState.Running or RunState.Succeeded => Tone.Ok,
+        RunState.Failed => Tone.Danger,
+        _ => Tone.Neutral
+    };
+
+    public bool IsFailedRun => _runState == RunState.Failed;
+
+    public string ElapsedText => _runState switch
+    {
+        RunState.Running => $"Elapsed {FormatElapsed(_stopwatch.Elapsed)}",
+        RunState.Succeeded => $"Finished in {FormatElapsed(_stopwatch.Elapsed)}",
+        RunState.Failed or RunState.Cancelled => $"Stopped after {FormatElapsed(_stopwatch.Elapsed)}",
+        _ => ".bin writes SPI flash (kept at power-off) · .bit loads SRAM (lost at power-off)"
+    };
 
     public bool IsFlashing
     {
@@ -94,11 +187,17 @@ public class FlashViewModel : BaseViewModel
         {
             if (SetProperty(ref _isFlashing, value))
             {
-                (FlashFirmwareCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
-                (CancelFlashCommand as RelayCommand)?.NotifyCanExecuteChanged();
+                _flashFirmwareCommand?.NotifyCanExecuteChanged();
+                _cancelFlashCommand?.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(CanCancel));
+                OnPropertyChanged(nameof(FlashButtonText));
             }
         }
     }
+
+    public string FlashButtonText => IsFlashing ? "Flashing…" : "Flash firmware";
+
+    public bool CanCancel => IsFlashing && CancellableStages.Contains(FlashStage);
 
     public bool IsFlashComplete
     {
@@ -114,7 +213,7 @@ public class FlashViewModel : BaseViewModel
 
     /// <summary>What to do after a successful flash; differs for SPI (.bin) vs SRAM (.bit).</summary>
     public string FlashSuccessMessage =>
-        FirmwarePath.EndsWith(".bit", StringComparison.OrdinalIgnoreCase)
+        IsBitFile
             ? "Bitstream loaded into the FPGA. It is active now and is lost on power-off."
             : "Firmware written to SPI flash. Fully power-cycle the target PC to load it.";
 
@@ -125,8 +224,8 @@ public class FlashViewModel : BaseViewModel
     }
 
     public ICommand BrowseFileCommand { get; }
-    public ICommand FlashFirmwareCommand { get; }
-    public ICommand CancelFlashCommand { get; }
+    public ICommand FlashFirmwareCommand => _flashFirmwareCommand;
+    public ICommand CancelFlashCommand => _cancelFlashCommand;
 
     public FlashViewModel(FlashService flashService, LogService logService, AppSettings settings)
     {
@@ -134,13 +233,25 @@ public class FlashViewModel : BaseViewModel
         _logService = logService;
         _settings = settings;
         BrowseFileCommand = new AsyncRelayCommand(BrowseFileAsync);
-        FlashFirmwareCommand = new AsyncRelayCommand(FlashFirmwareAsync, () => IsFileValid && !IsFlashing);
-        CancelFlashCommand = new RelayCommand(CancelFlash, () => IsFlashing);
+        _flashFirmwareCommand = new AsyncRelayCommand(FlashFirmwareAsync, () => IsFileValid && !IsFlashing);
+        _cancelFlashCommand = new RelayCommand(CancelFlash, () => CanCancel);
+
+        _elapsedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _elapsedTimer.Tick += (_, _) => OnPropertyChanged(nameof(ElapsedText));
+
+        ResetSteps();
 
         // Restore the firmware picked last session so a re-flash is one click.
         var last = _settings.LastFirmwarePath;
         if (!string.IsNullOrEmpty(last) && File.Exists(last))
             FirmwarePath = last;
+    }
+
+    /// <summary>A file dropped on the Firmware card.</summary>
+    public void LoadDroppedFile(string path)
+    {
+        if (IsFlashing) return;
+        FirmwarePath = path;
     }
 
     private async Task BrowseFileAsync()
@@ -189,7 +300,7 @@ public class FlashViewModel : BaseViewModel
 
         var firmware = FileValidator.Validate(FirmwarePath);
         FirmwareFileName = firmware.FileName;
-        FileSizeText = firmware.FileSize > 0 ? $"{firmware.FileSize / 1024}KB" : "—";
+        FileSizeText = firmware.FileSize > 0 ? $"{firmware.FileSize / 1024:N0} KB" : "—";
         IsFileValid = firmware.IsValid;
         FileValidationMessage = firmware.ValidationMessage;
         if (firmware.IsValid)
@@ -201,20 +312,38 @@ public class FlashViewModel : BaseViewModel
         if (string.IsNullOrEmpty(FirmwarePath) || !IsFileValid)
             return;
 
-        IsFlashing = true;
         IsFlashComplete = false;
         HasFlashError = false;
         FlashPercentage = 0;
         FlashStage = "Starting...";
         FlashMessage = "Preparing to flash firmware...";
+        IsFlashing = true;
+        ResetSteps();
+        SetActiveStep(0, 0);
+        _stopwatch.Restart();
+        _elapsedTimer.Start();
+        SetRunState(RunState.Running);
 
         _cts = new CancellationTokenSource();
 
         var progress = new Progress<FlashProgress>(p =>
         {
-            FlashPercentage = p.Percentage;
+            // A report can be queued behind the final result; ignore it then.
+            if (_runState != RunState.Running) return;
+
             FlashStage = p.Stage;
             FlashMessage = p.Message;
+
+            // "Failed" reports 0%; keep the bar where it stopped.
+            if (p.Stage == "Failed")
+            {
+                MarkActiveStepFailed();
+            }
+            else
+            {
+                FlashPercentage = p.Percentage;
+                ApplyStageToSteps(p.Stage, p.Percentage);
+            }
 
             if (p.IsComplete)
                 IsFlashComplete = true;
@@ -236,6 +365,8 @@ public class FlashViewModel : BaseViewModel
                 FlashPercentage = 100;
                 FlashStage = "Complete";
                 FlashMessage = "Firmware flashed successfully!";
+                SetActiveStep(Steps.Count, 0);
+                SetRunState(RunState.Succeeded);
             }
             else
             {
@@ -243,12 +374,16 @@ public class FlashViewModel : BaseViewModel
                 FlashErrorMessage = result.ErrorMessage;
                 FlashStage = "Failed";
                 FlashMessage = $"Flash failed: {result.ErrorMessage}";
+                MarkActiveStepFailed();
+                SetRunState(RunState.Failed);
             }
         }
         catch (OperationCanceledException)
         {
             FlashStage = "Cancelled";
             FlashMessage = "Flash operation was cancelled";
+            if (_activeStep < Steps.Count) Steps[_activeStep].SetPending();
+            SetRunState(RunState.Cancelled);
         }
         catch (Exception ex)
         {
@@ -256,10 +391,15 @@ public class FlashViewModel : BaseViewModel
             FlashErrorMessage = ex.Message;
             FlashStage = "Error";
             FlashMessage = $"Flash error: {ex.Message}";
+            MarkActiveStepFailed();
+            SetRunState(RunState.Failed);
         }
         finally
         {
+            _stopwatch.Stop();
+            _elapsedTimer.Stop();
             IsFlashing = false;
+            OnPropertyChanged(nameof(ElapsedText));
             _cts?.Dispose();
             _cts = null;
         }
@@ -272,4 +412,63 @@ public class FlashViewModel : BaseViewModel
         _logService.Warn("Cancel requested by user.");
         _cts?.Cancel();
     }
+
+    private void SetRunState(RunState state)
+    {
+        _runState = state;
+        OnPropertyChanged(nameof(ProgressText));
+        OnPropertyChanged(nameof(ProgressTone));
+        OnPropertyChanged(nameof(IsFailedRun));
+        OnPropertyChanged(nameof(ElapsedText));
+    }
+
+    private void ResetSteps()
+    {
+        Steps.Clear();
+        foreach (var label in IsBitFile ? SramSteps : SpiSteps)
+            Steps.Add(new FlashStep(label));
+        _activeStep = 0;
+    }
+
+    /// <summary>Maps the service's stage/percentage onto the step bar.</summary>
+    private void ApplyStageToSteps(string stage, int pct)
+    {
+        var (index, fraction) = IsBitFile
+            ? stage switch
+            {
+                "Programming" => (1, 0.5),
+                "Complete" => (Steps.Count, 0.0),
+                _ => (0, pct / 20.0)
+            }
+            : stage switch
+            {
+                "Erasing" => (1, (pct - 15) / 40.0),
+                "Erased" => (2, 0.0),
+                "Writing" => (2, (pct - 55) / 33.0),
+                "Written" => (3, 0.5),
+                "Complete" => (Steps.Count, 0.0),
+                _ => (0, pct / 15.0)
+            };
+        SetActiveStep(index, fraction);
+    }
+
+    private void SetActiveStep(int index, double fraction)
+    {
+        _activeStep = index;
+        for (int i = 0; i < Steps.Count; i++)
+        {
+            if (i < index) Steps[i].SetDone();
+            else if (i == index) Steps[i].SetActive(fraction);
+            else Steps[i].SetPending();
+        }
+    }
+
+    private void MarkActiveStepFailed()
+    {
+        if (_activeStep < Steps.Count)
+            Steps[_activeStep].SetFailed();
+    }
+
+    private static string FormatElapsed(TimeSpan t) =>
+        t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : $"{(int)t.TotalMinutes}:{t.Seconds:00}";
 }
