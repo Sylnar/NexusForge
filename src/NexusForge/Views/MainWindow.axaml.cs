@@ -11,6 +11,22 @@ public partial class MainWindow : Window
 {
     private bool _cleanupDone;
     private bool _closeInProgress;
+    private StopFlashWindow? _stopPrompt;
+
+    protected override void OnPropertyChanged(Avalonia.AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        // App hides this window when an auto-update takes over. Avalonia's Hide()
+        // also hides an open dialog without closing it, and ShowDialog only
+        // completes on Closed - so the await in OnClosing would never return and
+        // every later close would be ignored. Answer the question for the user with
+        // the safe choice instead: keep flashing.
+        if (change.Property == IsVisibleProperty && change.NewValue is false)
+        {
+            try { _stopPrompt?.Close(false); } catch { }
+        }
+    }
 
     public MainWindow()
     {
@@ -57,8 +73,11 @@ public partial class MainWindow : Window
             if (jtag?.IsFlashProgrammerRunning == true)
             {
                 bool stop = false;
-                try { stop = await new StopFlashWindow().ShowDialog<bool>(this); }
+                var prompt = new StopFlashWindow();
+                _stopPrompt = prompt;
+                try { stop = await prompt.ShowDialog<bool>(this); }
                 catch (Exception ex) { Helpers.CrashLogger.LogException("MainWindow.StopFlashPrompt", ex); }
+                finally { _stopPrompt = null; }
 
                 if (!stop)
                 {
