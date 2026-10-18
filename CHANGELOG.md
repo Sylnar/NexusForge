@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.1.31 — 2026-10-18
+
+### Changed
+- **The startup and shutdown screens now look like the rest of the app.** They had
+  been designed separately and had drifted: a different Sylnar logo, with a
+  gradient fill and a teal glow instead of the flat tile the app shows in its
+  sidebar, on rounder panels than any surface in the app. The logo is now the same
+  mark everywhere, scaled rather than redrawn, and both screens use the app's own
+  colours, type and progress bars.
+- The shutdown screen now carries the Sylnar mark and says what it is doing, rather
+  than only "Please wait".
+
+### Fixed
+- **A flash that failed could blame the wrong thing.** Some chips refuse the fast
+  whole-chip erase and fall back to erasing sector by sector. If a flash took that
+  path and then failed for any unrelated reason, Sylnar read the fallback notice as
+  a failure and reported the chip as write-protected, advising an external
+  programmer and a chip clip that were never needed. Genuine write protection is
+  still reported.
+- The shutdown screen had square corners where every other window is rounded, and
+  put a second Sylnar button in the taskbar for as long as it was open.
+- A failure while the startup screen was on its way out could leave the app running
+  with no window at all. The startup screen now always hands over.
+
+Nothing about what is written to the board changed in this release.
+
 ## v1.1.30 — 2026-10-18
 
 ### Fixed

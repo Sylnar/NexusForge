@@ -917,6 +917,22 @@ if ($dev) {{
         string errorMsg;
         string[] hints;
 
+        // v1.1.31: "Bulk flash erase failed. Falling back to sector erase." is the
+        // jtagspi driver announcing that the chip declined the whole-chip erase
+        // command and is taking the slower per-sector path instead. It is not a
+        // failure - the sector erase that follows normally succeeds, and that run is
+        // exactly the one the Erase step reports on. The binary carries a
+        // "sector-by-sector" variant of the same sentence; both open with this phrase
+        // and both contain "erase failed", so the erase branch below used to read a
+        // perfectly healthy chip as locked and tell the user to buy an external
+        // programmer and a SOIC-8 clip - on any run that took the fallback and then
+        // failed for some entirely unrelated reason. Drop the phrase before looking
+        // for a genuine erase failure. Real ones still match: OpenOCD writes those as
+        // "Flash sector_erase failed on sector %u" and the like, where the two words
+        // sit together on their own.
+        var eraseScan = combined.Replace("Bulk flash erase failed", " ",
+                                         StringComparison.OrdinalIgnoreCase);
+
         // Order matters: specific patterns before generic ones.
         if (combined.Contains("Unknown flash device", StringComparison.OrdinalIgnoreCase))
         {
@@ -953,8 +969,8 @@ if ($dev) {{
                 "Try: swap the JTAG USB cable for a shorter or known-good one, then retry the flash."
             };
         }
-        else if (combined.Contains("flash erase failed", StringComparison.OrdinalIgnoreCase) ||
-                 combined.Contains("erase failed", StringComparison.OrdinalIgnoreCase) ||
+        else if (eraseScan.Contains("flash erase failed", StringComparison.OrdinalIgnoreCase) ||
+                 eraseScan.Contains("erase failed", StringComparison.OrdinalIgnoreCase) ||
                  (combined.Contains("protected", StringComparison.OrdinalIgnoreCase) &&
                   combined.Contains("sector", StringComparison.OrdinalIgnoreCase)))
         {
