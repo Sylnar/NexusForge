@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.1.34 — 2026-10-18
+
+### Fixed
+- **A flash whose erase does nothing no longer writes a corrupt image.** Until now
+  Sylnar noticed the erase had not happened, said so, and then spent three minutes
+  writing anyway. Writing to flash that was not erased can only ever produce a
+  broken image, so the board could not boot from it. Sylnar now stops at the very
+  first page, before anything of substance is written, and starts the flash again
+  from the beginning. It tries up to three times.
+- If all three attempts fail to erase, Sylnar writes nothing at all and says so.
+  The board keeps whatever was on it rather than being left unbootable.
+
+Why three: the same board has been seen to erase properly on one attempt and do
+nothing on the next with nothing else changed. The cause of that is still open,
+and every attempt is recorded in `%LOCALAPPDATA%\Sylnar\flash\`.
+
 ## v1.1.33 — 2026-10-18
 
 ### Fixed

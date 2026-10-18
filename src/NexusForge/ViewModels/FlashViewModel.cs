@@ -355,6 +355,16 @@ public class FlashViewModel : BaseViewModel
                 FlashMessage = p.Message;
                 MarkActiveStepFailed();
             }
+            else if (p.Stage == "Retrying")
+            {
+                // A fresh attempt after an erase that did nothing. This is the one
+                // place progress legitimately goes backwards, so the forward-only
+                // guard and the step bar are both reset before it is applied.
+                FlashStage = p.Stage;
+                FlashMessage = p.Message;
+                FlashPercentage = p.Percentage;
+                ResetSteps();
+            }
             else
             {
                 // Drop a report that belongs to a stage already passed. The

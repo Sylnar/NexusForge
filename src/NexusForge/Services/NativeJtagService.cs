@@ -8,6 +8,12 @@ namespace Sylnar.Services;
 
 public class NativeJtagService : IDisposable
 {
+    /// <summary>
+    /// How many times a SPI flash is attempted when the erase silently does
+    /// nothing. Matches what the board has been seen to need in practice.
+    /// </summary>
+    private const int MaxEraseAttempts = 3;
+
     /// <summary>Markers the SPI status-register reads are echoed behind.</summary>
     private const string StatusReg1Marker = "SylnarSR1=";
     private const string StatusReg2Marker = "SylnarSR2=";
@@ -328,7 +334,48 @@ public class NativeJtagService : IDisposable
         }
         else
         {
-            return FlashSpiWithProgress(firmwarePath, firmwareOcd, fileName, sw, progress, cancellationToken);
+            // v1.1.34: a run whose erase silently did nothing stops at the first
+            // page instead of writing a corrupt image, and is simply tried again.
+            // The chip has been seen to erase properly on one attempt and not on
+            // the next with nothing else changed, which is the whole reason the
+            // retry is worth having. Each attempt is a fresh OpenOCD process that
+            // reloads the bridge and erases from scratch, so a retry cannot build
+            // on a half-finished one.
+            FlashResult result;
+            for (int attempt = 1; ; attempt++)
+            {
+                result = FlashSpiWithProgress(firmwarePath, firmwareOcd, fileName, sw, progress,
+                                              cancellationToken, out bool retryWanted);
+                if (!retryWanted) return result;
+
+                if (attempt >= MaxEraseAttempts)
+                {
+                    _logService.Error($"The flash chip would not erase on {MaxEraseAttempts} attempts, so nothing " +
+                                      "was written. The board still holds whatever was on it before.");
+                    _logService.Warn("Please send the newest flash record from %LOCALAPPDATA%\\Sylnar\\flash.");
+                    progress?.Report(new FlashProgress { Stage = "Failed", Percentage = 0, Message = "Flash would not erase" });
+                    return new FlashResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"The flash chip would not erase after {MaxEraseAttempts} attempts. Nothing was written.",
+                        Duration = sw.Elapsed
+                    };
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                _logService.Warn($"The erase did nothing, so attempt {attempt} was stopped before writing. " +
+                                 $"Starting attempt {attempt + 1} of {MaxEraseAttempts}...");
+                // "Retrying" rather than "Detecting": the panel's progress only ever
+                // moves forward, so a fresh attempt has to say so explicitly or its
+                // steps would be dropped as stale and the bar would sit where the
+                // failed attempt left it.
+                progress?.Report(new FlashProgress
+                {
+                    Stage = "Retrying",
+                    Percentage = 5,
+                    Message = $"Erase did nothing; retrying ({attempt + 1} of {MaxEraseAttempts})..."
+                });
+            }
         }
     }
 
@@ -525,8 +572,10 @@ if ($dev) {{
 
     private FlashResult FlashSpiWithProgress(
         string firmwarePath, string firmwareOcd, string fileName,
-        Stopwatch sw, IProgress<FlashProgress>? progress, CancellationToken ct)
+        Stopwatch sw, IProgress<FlashProgress>? progress, CancellationToken ct,
+        out bool badEraseRetryRequested)
     {
+        badEraseRetryRequested = false;
         _logService.Info("Mode: SPI flash programming (.bin → SPI flash)");
         progress?.Report(new FlashProgress { Stage = "Detecting", Percentage = 5, Message = "Identifying FPGA..." });
 
@@ -648,6 +697,8 @@ if ($dev) {{
         bool bulkFallback = false;     // "Bulk flash erase failed. Falling back..."
         int? statusReg1 = null, statusReg2 = null;
         bool chipWriteProtected = false;
+        string? eraseSuspicion = null;   // set by ReportEraseEvidence; non-null means the erase did not happen
+        bool abortedForBadErase = false; // this attempt was stopped at the first page, before real damage
 
         // Last safe point to cancel: once the programmer starts erasing, killing
         // it leaves the board with a half-written (unbootable) flash.
@@ -814,6 +865,8 @@ if ($dev) {{
                      && firstPageAtMs.Value - probeAtMs.Value < 3000)
                 suspicion = $"no erase was reported and writing began {gap} after detection";
 
+            eraseSuspicion = suspicion;
+
             if (!final)
             {
                 _logService.Info(summary);
@@ -823,13 +876,10 @@ if ($dev) {{
                 if (suspicion != null)
                 {
                     _logService.Warn($"This erase finished faster than a real flash erase can ({suspicion}). " +
-                                     "The flash was almost certainly NOT erased, so what is being written now " +
-                                     "will be wrong and the board will not boot from it.");
-                    _logService.Warn(chipWriteProtected
-                        ? "The cause is the write protection reported above. The protection bits have to be " +
-                          "cleared before this board can be flashed."
-                        : "The chip did not report write protection, so the cause is still open. Please send " +
-                          "the flash record " + (transcript.DisplayPath ?? @"from %LOCALAPPDATA%\Sylnar\flash") + ".");
+                                     "The flash was almost certainly NOT erased.");
+                    if (chipWriteProtected)
+                        _logService.Warn("The cause is the write protection reported above. The protection bits " +
+                                         "have to be cleared before this board can be flashed.");
                 }
             }
             transcript.Note((final ? "FINAL " : "") + summary + (suspicion != null ? $" SUSPECT: {suspicion}." : ""));
@@ -1019,6 +1069,23 @@ if ($dev) {{
                 {
                     firstPageAtMs = sw.ElapsedMilliseconds;
                     ReportEraseEvidence(final: false);
+
+                    // v1.1.34: the erase did not happen, so stop NOW, at the very
+                    // first page, before the write gets going. Writing to flash that
+                    // was not erased can only clear bits that are already set, so it
+                    // produces a corrupt image every time - the run is already lost,
+                    // and carrying on would spend three minutes making it worse and
+                    // wearing the chip. One page may already be out; the retry erases
+                    // the whole range again anyway.
+                    if (eraseSuspicion != null)
+                    {
+                        abortedForBadErase = true;
+                        transcript.Note("ABORT: erase did not happen; stopping before the write.");
+                        _logService.Warn("Stopping before anything is written, so the board is not left with " +
+                                         "a corrupt image.");
+                        try { process.Kill(true); } catch { }
+                        return;
+                    }
                 }
                 // The first page of the write is the end of the erase. This
                 // replaces a check for a "done in" line, which no OpenOCD in this
@@ -1135,6 +1202,20 @@ if ($dev) {{
         transcript.Note($"OpenOCD exited with code {process.ExitCode} after {sw.Elapsed.TotalSeconds:F1}s; " +
                         $"{pagesWritten:N0} of {totalPages:N0} pages seen");
         ReportEraseEvidence(final: true);
+
+        // Stopped on purpose at the first page because the erase did not happen.
+        // The caller decides whether to try again; nothing of substance was written
+        // either way, so this never reports a half-flashed board.
+        if (abortedForBadErase)
+        {
+            badEraseRetryRequested = true;
+            return new FlashResult
+            {
+                Success = false,
+                ErrorMessage = "The flash chip did not erase",
+                Duration = sw.Elapsed
+            };
+        }
 
         // v1.1.25: tightened success gate. Previously any of (ExitCode==0, wrote
         // seen, "Close" substring) counted; that let partial-write failures pass
