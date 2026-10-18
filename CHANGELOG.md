@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.1.30 — 2026-10-18
+
+### Fixed
+- **The Erase step now appears when it should.** Pressing Flash often went
+  straight to Write with no Erase step, and only sometimes showed the erase
+  after a few restarts. The board was always being erased — the app simply
+  could not see it happening. Most SPI chips erase in one whole-chip command
+  that reports nothing while it runs, and the only line the app watched for is
+  one the chip prints solely on the slower sector-by-sector fallback. The erase
+  is now shown for both, with per-sector progress where the chip reports it.
+- A chip that refuses the fast whole-chip erase and falls back to erasing
+  sector by sector now says so in the log, which is also why those runs take
+  noticeably longer.
+- The step bar, the percentage and the status line no longer jump backwards.
+  Progress arrives on two separate streams that are read independently, so a
+  late line could previously drag the display back a step.
+
+Nothing about what is written to the board changed in this release.
+
 ## v1.1.29 — 2026-09-27
 
 ### New
