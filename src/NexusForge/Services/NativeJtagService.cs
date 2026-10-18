@@ -594,6 +594,7 @@ if ($dev) {{
         bool wrote = false, verifyFailed = false;
         int sectorsTotal = totalSectorsEstimate;
         int sectorsErased = 0;
+        int eraseFirstSector = 0;   // sector the erase range starts at; the per-sector lines count from it
         bool erasePhase = false;
         long totalPages = firmwareSize / 256;
         long pagesWritten = 0;
@@ -620,6 +621,30 @@ if ($dev) {{
             lock (lineLock) ProcessLineCore(line);
         }
 
+        // Both are idempotent: more than one marker can announce the same
+        // transition and whichever arrives first should report it once. They are
+        // also the gate `erasePhase` was declared for and never used.
+        void EnterErasePhase()
+        {
+            if (erasePhase) return;
+            erasePhase = true;
+            // A whole-chip erase says nothing at all until it is over, so this
+            // may be the only erase news for a minute or more. The elapsed clock
+            // on the panel is what shows it is still working.
+            progress?.Report(new FlashProgress { Stage = "Erasing", Percentage = 20, Message = "Erasing flash (can take a minute)..." });
+        }
+
+        void EndErasePhase(long elapsedMs = 0)
+        {
+            if (!erasePhase) return;
+            erasePhase = false;
+            string detail = sectorsErased > 0 ? $" ({sectorsErased} sectors)"
+                          : elapsedMs > 0 ? $" in {elapsedMs / 1000.0:F1}s"
+                          : "";
+            _logService.Info($"Erase complete{detail}.");
+            progress?.Report(new FlashProgress { Stage = "Erased", Percentage = 45, Message = "Erase complete. Writing..." });
+        }
+
         void ProcessLineCore(string line)
         {
             allOutput.AppendLine(line);
@@ -639,30 +664,94 @@ if ($dev) {{
                 string flashName = fm.Success ? fm.Groups[1].Value : "SPI flash";
                 _logService.Info($"SPI flash detected: {flashName}");
                 progress?.Report(new FlashProgress { Stage = "Detected", Percentage = 15, Message = $"Flash: {flashName}" });
+                // The probe is the LAST thing jtagspi_init does, and jtagspi_program
+                // starts erasing immediately after it, so this line is where the
+                // erase begins as far as anything observable goes. See the block
+                // below for why there is nothing better to key on.
+                EnterErasePhase();
             }
 
-            var eraseRangeMatch = Regex.Match(t, @"erasing\s+sectors?\s+(\d+)\s+through\s+(\d+)", RegexOptions.IgnoreCase);
+            // ── erase ────────────────────────────────────────────────────────
+            // Almost nothing about the erase is observable, which is the whole
+            // bug. Two separate reasons, both read out of the bundled openocd.exe
+            // rather than assumed:
+            //
+            // 1. OpenOCD 0.11's command_print does NOT log. It appends to the
+            //    command's Jim result object (_command_print calls
+            //    Jim_AppendString and never touches the logger), and this app
+            //    runs one "-c init; ...; exit" chain, so that object is never
+            //    printed. Everything emitted that way is invisible here:
+            //    "auto erase enabled", the pld "loaded file ..." line, and even
+            //    "wrote N bytes from file ..." - which is exactly why the success
+            //    gate further down cannot rely on `wrote` and counts pages too.
+            //    Only log_printf_lf at level <= 2 (the default; no -d is passed)
+            //    and OpenOCD's raw printf reach this parser.
+            //
+            // 2. In the jtagspi driver the erase has two paths, and the quiet one
+            //    is the normal one:
+            //      bulk    one whole-chip command. "Trying bulk erase." is
+            //              level 3 behind an explicit debug_level > 2 guard, so
+            //              the erase itself says nothing; only a trailing
+            //              "took <n> ms" at level 2 marks the end of it.
+            //      sector  "sector <n> took <m> ms" per sector at level 2,
+            //              reached directly or after "Bulk flash erase failed"
+            //              (level 1, always visible).
+            //    The old code matched ONLY the per-sector line, so a bulk erase
+            //    showed no Erase step at all and the bar sat on Bridge until the
+            //    write began - the reported "it goes straight to writing". The
+            //    two other erase parsers were dead outright: "done in" occurs
+            //    nowhere in this binary, and "erasing sectors N through M" is
+            //    at91sam4l's string, never jtagspi's.
+            //
+            // So the phase is bracketed by the fixed command chain in jtagspi.cfg
+            // (jtagspi_init: pld load, reset halt, flash probe -- then
+            // jtagspi_program: flash write_image erase, flash verify_bank): it
+            // opens at the probe line above and closes at the first page of the
+            // write, with whatever the driver does say used to fill it in.
+
+            // Level 3, so normally absent; parsed anyway because it is the only
+            // line that states the real sector count.
+            var eraseRangeMatch = Regex.Match(t, @"erase\s+from\s+sector\s+(\d+)\s+to\s+sector\s+(\d+)", RegexOptions.IgnoreCase);
             if (eraseRangeMatch.Success)
             {
                 int first = int.Parse(eraseRangeMatch.Groups[1].Value);
                 int last = int.Parse(eraseRangeMatch.Groups[2].Value);
-                sectorsTotal = last + 1;
-                erasePhase = true;
+                if (last >= first)
+                {
+                    eraseFirstSector = first;
+                    sectorsTotal = last - first + 1;
+                }
+                EnterErasePhase();
                 _logService.Info($"Erasing sectors {first}–{last} ({sectorsTotal} total)...");
-                progress?.Report(new FlashProgress { Stage = "Erasing", Percentage = 20, Message = $"Erasing sector 0 / {sectorsTotal}" });
+            }
+
+            // LOG_WARNING, so always visible: the chip refused the bulk erase and
+            // the driver is falling back to erasing sector by sector. Worth
+            // saying out loud - it is also why some runs take much longer.
+            if (t.Contains("Bulk flash erase failed", StringComparison.OrdinalIgnoreCase))
+            {
+                EnterErasePhase();
+                _logService.Warn("Bulk erase refused by the chip; falling back to sector erase (slower).");
+                progress?.Report(new FlashProgress { Stage = "Erasing", Percentage = 20, Message = "Erasing sector by sector..." });
             }
 
             var sectorMatch = Regex.Match(t, @"sector\s+(\d+)\s+took\s+(\d+)\s*ms", RegexOptions.IgnoreCase);
             if (sectorMatch.Success)
             {
-                erasePhase = true;
+                EnterErasePhase();
                 int sectorNum = int.Parse(sectorMatch.Groups[1].Value);
-                sectorsErased = sectorNum + 1;
+                // The driver logs the absolute sector number; count from the
+                // start of the erase range so a range that does not begin at 0
+                // does not read as more sectors erased than there are.
+                sectorsErased = Math.Max(1, sectorNum - eraseFirstSector + 1);
 
                 int total = sectorsTotal > 0 ? sectorsTotal : totalSectorsEstimate;
+                if (sectorsErased > total) total = sectorsErased;
 
+                // Floored at the 20 the phase opened on, so the first sector of a
+                // large erase does not read as going backwards from 20% to 16%.
                 int pct = 15 + (int)(40.0 * sectorsErased / total);
-                pct = Math.Min(pct, 54);
+                pct = Math.Clamp(pct, 20, 54);
 
                 progress?.Report(new FlashProgress
                 {
@@ -672,20 +761,28 @@ if ($dev) {{
                 });
             }
 
-            if (t.Contains("done in", StringComparison.OrdinalIgnoreCase) && !wrote)
-            {
-                erasePhase = false;
-                var tm = Regex.Match(t, @"done in ([\d.]+)", RegexOptions.IgnoreCase);
-                string time = tm.Success ? $" in {tm.Groups[1].Value}s" : "";
-                _logService.Info($"Erase complete{time}.");
-                progress?.Report(new FlashProgress { Stage = "Erased", Percentage = 45, Message = "Erase complete. Writing..." });
-            }
+            // NOT a completion marker, though it looks like one: a whole-chip
+            // erase logs a bare "took <n> ms" (level 2) from jtagspi_bulk_erase,
+            // but it does so UNCONDITIONALLY, before the caller inspects the
+            // result - the return value is stashed, the line is logged, then the
+            // value is returned. On a refused bulk erase the real order is
+            //     Info : took 32000 ms
+            //     Warn : Bulk flash erase failed. Falling back to sector erase.
+            //     Info : sector 0 took 120 ms   ...
+            // so treating it as "erase finished" would close the phase in the
+            // middle of the erase and report the rest of it as writing. The
+            // first page of the write is the only honest end, and it is handled
+            // below for both paths.
 
             var pageMatch = Regex.Match(t, @"^0x([0-9a-fA-F]{8})\.$");
             if (pageMatch.Success)
             {
+                // The first page of the write is the end of the erase. This
+                // replaces a check for a "done in" line, which no OpenOCD in this
+                // build ever prints - the erase was never reported as finished
+                // and the "Erase complete" message was dead code.
+                EndErasePhase();
                 pagesWritten++;
-                erasePhase = false;
 
                 if (totalPages > 0)
                 {
@@ -718,6 +815,12 @@ if ($dev) {{
             // requires ExitCode==0 or full page count reached).
             if (t.Contains("wrote", StringComparison.OrdinalIgnoreCase) && t.Contains("bytes", StringComparison.OrdinalIgnoreCase))
             {
+                // Belt and braces only: this line is command_print too, so it
+                // does not actually reach us on this build (which is why the
+                // success gate below cannot lean on `wrote` and counts pages).
+                // Left in so the phase would still close if a future OpenOCD
+                // logged it.
+                EndErasePhase();
                 wrote = true;
                 long kbWritten = (pagesWritten * 256) / 1024;
                 _logService.Info($"Write complete: {kbWritten} KB ({pagesWritten} pages).");

@@ -44,6 +44,23 @@ public class FlashViewModel : BaseViewModel
     private CancellationTokenSource? _cts;
     private RunState _runState = RunState.Idle;
     private int _activeStep;
+    private int _furthestStep;
+    private int _furthestStage;
+
+    /// <summary>
+    /// How far through a flash a stage is. Used to drop reports that arrive out
+    /// of order; everything before the erase shares rank 0, since those are all
+    /// the opening step and their order between themselves does not matter.
+    /// </summary>
+    private static int StageRank(string stage) => stage switch
+    {
+        "Erasing" => 1,
+        "Erased" => 2,
+        "Writing" or "Programming" => 3,
+        "Written" => 4,
+        "Complete" => 5,
+        _ => 0,
+    };
 
     public ObservableCollection<FlashStep> Steps { get; } = new();
 
@@ -331,16 +348,27 @@ public class FlashViewModel : BaseViewModel
             // A report can be queued behind the final result; ignore it then.
             if (_runState != RunState.Running) return;
 
-            FlashStage = p.Stage;
-            FlashMessage = p.Message;
-
             // "Failed" reports 0%; keep the bar where it stopped.
             if (p.Stage == "Failed")
             {
+                FlashStage = p.Stage;
+                FlashMessage = p.Message;
                 MarkActiveStepFailed();
             }
             else
             {
+                // Drop a report that belongs to a stage already passed. The
+                // service reads OpenOCD's stderr and stdout on two independent
+                // tasks with no ordering between them, so an erase line can be
+                // handled after a write line from the other pipe; applying it
+                // would wind the percentage and the message backwards while the
+                // flash is in fact further along.
+                int rank = StageRank(p.Stage);
+                if (rank < _furthestStage) return;
+                _furthestStage = rank;
+
+                FlashStage = p.Stage;
+                FlashMessage = p.Message;
                 FlashPercentage = p.Percentage;
                 ApplyStageToSteps(p.Stage, p.Percentage);
             }
@@ -428,9 +456,20 @@ public class FlashViewModel : BaseViewModel
         foreach (var label in IsBitFile ? SramSteps : SpiSteps)
             Steps.Add(new FlashStep(label));
         _activeStep = 0;
+        _furthestStep = 0;
+        _furthestStage = 0;
     }
 
-    /// <summary>Maps the service's stage/percentage onto the step bar.</summary>
+    /// <summary>
+    /// Maps the service's stage/percentage onto the step bar.
+    ///
+    /// Only ever forwards. The service parses two pipes - OpenOCD's log goes to
+    /// stderr while the write's per-page lines are a plain printf on stdout - and
+    /// they are drained by two independent tasks, so a line can be handled after
+    /// a later one from the other pipe. Without this the bar could be dragged
+    /// back from Write to Erase by a straggling erase line. Flashing only ever
+    /// moves forward, so the furthest step reached is the honest one to show.
+    /// </summary>
     private void ApplyStageToSteps(string stage, int pct)
     {
         var (index, fraction) = IsBitFile
@@ -449,12 +488,23 @@ public class FlashViewModel : BaseViewModel
                 "Complete" => (Steps.Count, 0.0),
                 _ => (0, pct / 15.0)
             };
+
+        if (index < _furthestStep)
+        {
+            // A straggler from the other pipe. Hold the step it belongs to at
+            // full, rather than un-doing the progress already shown.
+            if (index >= 0 && index < Steps.Count) Steps[index].SetDone();
+            return;
+        }
+
+        _furthestStep = index;
         SetActiveStep(index, fraction);
     }
 
     private void SetActiveStep(int index, double fraction)
     {
         _activeStep = index;
+        if (index > _furthestStep) _furthestStep = index;
         for (int i = 0; i < Steps.Count; i++)
         {
             if (i < index) Steps[i].SetDone();
