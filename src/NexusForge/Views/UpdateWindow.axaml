@@ -8,59 +8,56 @@
         SystemDecorations="None"
         TransparencyLevelHint="AcrylicBlur"
         Background="Transparent"
+        Foreground="{StaticResource TextPrimaryBrush}"
         Topmost="True"
         ShowInTaskbar="True">
 
-  <Border CornerRadius="16" ClipToBounds="True">
-    <Border.Background>
-      <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-        <GradientStop Color="#0D1015" Offset="0"/>
-        <GradientStop Color="#11161C" Offset="0.5"/>
-        <GradientStop Color="#0B0E12" Offset="1"/>
-      </LinearGradientBrush>
-    </Border.Background>
+  <!--
+    v1.1.31: brought onto the same surface and the same brand mark as SplashWindow
+    and ShutdownWindow. The composition, the size and the SetStatus/SetProgress/
+    SetApplying contract in the code-behind are unchanged; only the gradient fill,
+    the teal BoxShadow glow, the 16px radius and the inline colours are gone, so
+    the product no longer draws two different Sylnar logos depending on which
+    window you are looking at.
+  -->
+  <Border Background="{StaticResource BgAppBrush}"
+          BorderBrush="{StaticResource LineCardBrush}"
+          BorderThickness="1"
+          CornerRadius="10"
+          ClipToBounds="True">
+    <StackPanel Margin="30,28,30,28" Spacing="18" VerticalAlignment="Center">
 
-    <Border BorderBrush="#1E252F" BorderThickness="1" CornerRadius="16">
-      <StackPanel Margin="30,28,30,28" Spacing="18" VerticalAlignment="Center">
+      <!-- Header: brand lockup + live status -->
+      <StackPanel Orientation="Horizontal" Spacing="16">
+        <Border Width="48" Height="48" CornerRadius="13" VerticalAlignment="Center"
+                Background="{StaticResource AccentBrush}">
+          <TextBlock Text="S"
+                     Foreground="{StaticResource OnAccentBrush}"
+                     FontSize="26" FontWeight="Bold"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
 
-        <!-- Header: logo + title + status -->
-        <StackPanel Orientation="Horizontal" Spacing="16">
-          <Border Width="48" Height="48" CornerRadius="13" VerticalAlignment="Center">
-            <Border.Background>
-              <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#19D3A8" Offset="0"/>
-                <GradientStop Color="#14B994" Offset="1"/>
-              </LinearGradientBrush>
-            </Border.Background>
-            <Border.BoxShadow>0 4 18 0 #4019D3A8</Border.BoxShadow>
-            <TextBlock Text="S" Foreground="#04211A" FontSize="26" FontWeight="Bold"
-                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-          </Border>
-
-          <StackPanel VerticalAlignment="Center" Spacing="3">
-            <TextBlock Text="Updating Sylnar"
-                       FontSize="17" FontWeight="Bold" Foreground="#E7ECF2" />
-            <TextBlock Name="StatusText"
-                       Text="Preparing update..."
-                       FontSize="11.5" Foreground="#9AA5B4" />
-          </StackPanel>
+        <StackPanel VerticalAlignment="Center" Spacing="3">
+          <TextBlock Text="Updating Sylnar" FontSize="17" FontWeight="Bold" />
+          <TextBlock Name="StatusText"
+                     Text="Preparing update..."
+                     FontSize="11.5"
+                     Foreground="{StaticResource TextMutedBrush}" />
         </StackPanel>
-
-        <!-- Progress -->
-        <StackPanel Spacing="8">
-          <ProgressBar Name="Bar"
-                       Minimum="0" Maximum="100" Value="0"
-                       Height="6"
-                       Foreground="#19D3A8"
-                       Background="#1E252F"
-                       IsIndeterminate="True" />
-          <TextBlock Name="DetailText"
-                     Text=""
-                     FontSize="11" Foreground="#7A8696"
-                     HorizontalAlignment="Right" />
-        </StackPanel>
-
       </StackPanel>
-    </Border>
+
+      <!-- Progress -->
+      <StackPanel Spacing="8">
+        <ProgressBar Name="Bar"
+                     Classes="bar"
+                     Minimum="0" Maximum="100" Value="0"
+                     IsIndeterminate="True" />
+        <TextBlock Name="DetailText"
+                   Text=""
+                   Classes="caption"
+                   HorizontalAlignment="Right" />
+      </StackPanel>
+
+    </StackPanel>
   </Border>
 </Window>

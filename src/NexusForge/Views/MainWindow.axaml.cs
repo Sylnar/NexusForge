@@ -1,7 +1,5 @@
 using System.Diagnostics;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Media;
 using Avalonia.Threading;
 using Sylnar.Services;
 using Sylnar.ViewModels;
@@ -132,63 +130,5 @@ public partial class MainWindow : Window
             })?.Dispose();
         }
         catch { }
-    }
-}
-
-public class ShutdownWindow : Window
-{
-    public ShutdownWindow()
-    {
-        Title = "Sylnar";
-        Width = 280;
-        Height = 120;
-        CanResize = false;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        SystemDecorations = SystemDecorations.None;
-        Background = new SolidColorBrush(Color.Parse("#0D1015"));
-        Topmost = true;
-
-        Content = new Border
-        {
-            Background = new SolidColorBrush(Color.Parse("#141920")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#222A35")),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(24, 20),
-            Child = new StackPanel
-            {
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                Spacing = 16,
-                Children =
-                {
-                    new TextBlock
-                    {
-                        Text = "Shutting down...",
-                        Foreground = new SolidColorBrush(Color.Parse("#E7ECF2")),
-                        FontSize = 14,
-                        FontWeight = FontWeight.SemiBold,
-                        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
-                    },
-                    new ProgressBar
-                    {
-                        IsIndeterminate = true,
-                        Width = 200,
-                        Height = 4,
-                        Foreground = new SolidColorBrush(Color.Parse("#19D3A8")),
-                        Background = new SolidColorBrush(Color.Parse("#1E252F")),
-                        CornerRadius = new CornerRadius(2),
-                        MinHeight = 4
-                    },
-                    new TextBlock
-                    {
-                        Text = "Please wait...",
-                        Foreground = new SolidColorBrush(Color.Parse("#7A8696")),
-                        FontSize = 11,
-                        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
-                    }
-                }
-            }
-        };
     }
 }

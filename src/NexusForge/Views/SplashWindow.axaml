@@ -9,109 +9,84 @@
         SystemDecorations="None"
         TransparencyLevelHint="AcrylicBlur"
         Background="Transparent"
+        Foreground="{StaticResource TextPrimaryBrush}"
         Topmost="True"
         ShowInTaskbar="False">
 
-  <Border CornerRadius="16"
+  <!--
+    v1.1.31: the splash is the app's own surface at window scale, not a separate
+    little design that happens to share the teal. Everything here comes from
+    Styles/Theme.axaml, and the brand lockup is the sidebar's (Controls/Sidebar.axaml)
+    scaled on its own ratios: tile 30:8 -> 56:15, glyph 16:30 -> 30:56, wordmark
+    tracking 0.06em -> 24px:1.44. Gone with it: the diagonal gradients, the teal
+    BoxShadow glows and the 16px radius, none of which the product draws anywhere
+    else - depth here is 1px lines and flat surface steps.
+
+    Background stays Transparent under AcrylicBlur so the 10px corners round against
+    the desktop; every pixel inside the Border is opaque. The two nested Borders this
+    replaces (gradient fill outside, stroke inside) are now one.
+  -->
+  <Border Background="{StaticResource BgAppBrush}"
+          BorderBrush="{StaticResource LineCardBrush}"
+          BorderThickness="1"
+          CornerRadius="10"
           ClipToBounds="True">
-    <Border.Background>
-      <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-        <GradientStop Color="#0D1015" Offset="0"/>
-        <GradientStop Color="#11161C" Offset="0.5"/>
-        <GradientStop Color="#0B0E12" Offset="1"/>
-      </LinearGradientBrush>
-    </Border.Background>
+    <Grid RowDefinitions="*,Auto,Auto">
 
-    <Border BorderBrush="#1E252F" BorderThickness="1" CornerRadius="16">
-      <Grid RowDefinitions="*,Auto,Auto">
+      <!-- Brand -->
+      <StackPanel Grid.Row="0"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  Spacing="16"
+                  Margin="0,20,0,0">
 
-        <!-- Main content -->
-        <StackPanel Grid.Row="0"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Spacing="16"
-                    Margin="0,20,0,0">
+        <Border HorizontalAlignment="Center"
+                Width="56" Height="56"
+                CornerRadius="15"
+                Background="{StaticResource AccentBrush}">
+          <TextBlock Text="S"
+                     Foreground="{StaticResource OnAccentBrush}"
+                     FontSize="30"
+                     FontWeight="Bold"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+        </Border>
 
-          <!-- Animated logo -->
-          <Border HorizontalAlignment="Center"
-                  Width="72" Height="72"
-                  CornerRadius="18"
-                  Name="LogoBorder">
-            <Border.Background>
-              <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#19D3A8" Offset="0"/>
-                <GradientStop Color="#14B994" Offset="1"/>
-              </LinearGradientBrush>
-            </Border.Background>
-            <Border.BoxShadow>0 4 24 0 #4019D3A8</Border.BoxShadow>
-            <TextBlock Text="S"
-                       Foreground="#04211A"
-                       FontSize="36"
-                       FontWeight="Bold"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center" />
-          </Border>
-
-          <!-- Title -->
-          <StackPanel HorizontalAlignment="Center" Spacing="4">
-            <TextBlock Text="SYLNAR"
-                       FontSize="28"
-                       FontWeight="Bold"
-                       Foreground="#E7ECF2"
-                       HorizontalAlignment="Center"
-                       LetterSpacing="3" />
-            <TextBlock Text="DMA FPGA Management Tool"
-                       FontSize="12"
-                       Foreground="#7A8696"
-                       HorizontalAlignment="Center" />
-          </StackPanel>
-
-        </StackPanel>
-
-        <!-- Progress section -->
-        <StackPanel Grid.Row="1"
-                    Margin="48,0,48,0"
-                    Spacing="10">
-
-          <!-- Progress bar track -->
-          <Border Background="#1E252F"
-                  CornerRadius="3"
-                  Height="4"
-                  ClipToBounds="True">
-            <Border Name="ProgressFill"
-                    Background="#19D3A8"
-                    CornerRadius="3"
-                    Height="4"
-                    HorizontalAlignment="Left"
-                    Width="0">
-              <Border.BoxShadow>0 0 8 0 #8019D3A8</Border.BoxShadow>
-            </Border>
-          </Border>
-
-          <!-- Status text -->
-          <TextBlock Name="StatusText"
-                     Text="Initializing..."
-                     Foreground="#5E6A7A"
-                     FontSize="11"
+        <StackPanel HorizontalAlignment="Center" Spacing="4">
+          <TextBlock Text="SYLNAR"
+                     FontSize="24"
+                     FontWeight="Bold"
+                     LetterSpacing="1.44"
+                     HorizontalAlignment="Center" />
+          <TextBlock Text="DMA FPGA Management Tool"
+                     Classes="sub"
                      HorizontalAlignment="Center" />
         </StackPanel>
 
-        <!-- Version footer -->
-        <StackPanel Grid.Row="2"
-                    HorizontalAlignment="Center"
-                    Margin="0,16,0,20"
-                    Orientation="Horizontal"
-                    Spacing="6">
-          <Ellipse Width="5" Height="5" Fill="#19D3A8" VerticalAlignment="Center" />
-          <!-- v1.1.25: Text bound via x:Static so design-time preview and
-               runtime both source from VersionInfo (single source of truth). -->
-          <TextBlock Name="VersionText"
-                     Text="{x:Static h:VersionInfo.WithV}"
-                     Foreground="#5E6A7A"
-                     FontSize="10" />
-        </StackPanel>
+      </StackPanel>
 
-      </Grid>
-    </Border>
+      <!-- Progress -->
+      <StackPanel Grid.Row="1" Margin="48,0,48,0" Spacing="10">
+        <ProgressBar Name="Progress"
+                     Classes="thin"
+                     Minimum="0" Maximum="100" Value="0" />
+        <TextBlock Name="StatusText"
+                   Text="Initializing..."
+                   Classes="caption"
+                   HorizontalAlignment="Center" />
+      </StackPanel>
+
+      <!-- Version footer. VersionInfo is the single source of truth; the
+           code-behind no longer sets this a second time. -->
+      <StackPanel Grid.Row="2"
+                  HorizontalAlignment="Center"
+                  Margin="0,16,0,20"
+                  Orientation="Horizontal"
+                  Spacing="6">
+        <Ellipse Classes="dot ok" />
+        <TextBlock Text="{x:Static h:VersionInfo.WithV}" Classes="mono caption" />
+      </StackPanel>
+
+    </Grid>
   </Border>
 </Window>

@@ -1,0 +1,60 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Sylnar.Views.ShutdownWindow"
+        Title="Sylnar"
+        Width="340" Height="150"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        Topmost="True"
+        ShowInTaskbar="False">
+
+  <!--
+    v1.1.31: the exit splash, previously a Window built by hand in C# inside
+    MainWindow.axaml.cs with its own hardcoded palette and no brand on it at all.
+    It is now the same surface as SplashWindow - same flat BgApp fill, same card
+    line, same 10px radius, same lockup - so leaving the app looks like entering it.
+
+    Two defects go with the rewrite. The old window painted an OPAQUE background
+    behind a rounded Border, so its corners were square while every other window's
+    round. And it left ShowInTaskbar at its default of true, which put a second
+    "Sylnar" button in the taskbar for the whole shutdown, right after
+    MainWindow.Hide() had removed the first one.
+
+    MainWindow.OnClosing shows this for the length of the cleanup, so the copy names
+    what is actually happening rather than "Please wait".
+  -->
+  <Border Background="{StaticResource BgAppBrush}"
+          BorderBrush="{StaticResource LineCardBrush}"
+          BorderThickness="1"
+          CornerRadius="10"
+          ClipToBounds="True">
+    <StackPanel Margin="20" Spacing="16" VerticalAlignment="Center">
+
+      <!-- The sidebar's brand lockup, at the sidebar's own size. -->
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Border Width="30" Height="30" CornerRadius="8"
+                Background="{StaticResource AccentBrush}">
+          <TextBlock Text="S" FontSize="16" FontWeight="Bold"
+                     Foreground="{StaticResource OnAccentBrush}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Spacing="1" VerticalAlignment="Center">
+          <TextBlock Text="SYLNAR" FontSize="14" FontWeight="Bold" LetterSpacing="0.84" />
+          <TextBlock Text="Shutting down" Classes="caption" />
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <ProgressBar Classes="thin" IsIndeterminate="True" />
+        <TextBlock Text="Closing the board link and clearing temporary files..."
+                   Classes="caption"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+
+    </StackPanel>
+  </Border>
+</Window>
