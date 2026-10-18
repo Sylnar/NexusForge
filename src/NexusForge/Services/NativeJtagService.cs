@@ -8,6 +8,13 @@ namespace Sylnar.Services;
 
 public class NativeJtagService : IDisposable
 {
+    /// <summary>
+    /// JTAG clock for SPI flashing, in kHz. The CH347 driver rounds up to the
+    /// adapter's next fixed clock, so 3750 is exactly 3.75 MHz. See the comment
+    /// at the SPI command in FlashSpiWithProgress for why it is not 10000.
+    /// </summary>
+    private const int SpiFlashJtagKhz = 3750;
+
     private readonly LogService _logService;
     private readonly AppSettings _settings;
     private string? _toolDir;
@@ -571,7 +578,26 @@ if ($dev) {{
         // the board. v1.1.13's verify_image even errored ("checksum_memory").
         // So we use exactly the long-proven write flow: write happens in
         // jtagspi_program; we report "written" honestly and never fake a verify.
+        // v1.1.32: run the SPI flash at 3.75 MHz instead of the 15 MHz ch347.cfg
+        // actually produces. ch347.cfg asks for "adapter speed 10000", but this
+        // build's ch347_speed (0x40a823) only knows the CH347's fixed clocks
+        // (1.875, 3.75, 7.5, 15, 30, 60 MHz) and rounds a request UP to the next
+        // one, so 10000 kHz becomes 15 MHz. The adapter is a CH347T (vid_pid
+        // 0x55dd in ch347.cfg), the part OpenOCD's own manual warns about: poor
+        // USB HS behaviour and JTAG timing in which some clock pulses are much
+        // shorter than the requested frequency.
+        //
+        // Every SPI command crosses that JTAG link through the BSCAN bridge, and
+        // jtagspi_wait (0x483fb6) declares an erase finished on the first status
+        // read whose busy bit is clear. One misread status byte therefore ends an
+        // erase that never ran, instantly and with no error - which matches the
+        // report of Flash "jumping straight to writing" until a retry happens to
+        // read cleanly. A four times longer clock period gives the read path four
+        // times the margin. It is set here, after the config files and before
+        // init, so the bridge load, the probe, the erase and the write all use it;
+        // the separate scan_chain detection keeps the config's speed.
         string commands =
+            $"adapter speed {SpiFlashJtagKhz}; " +
             $"init; " +
             $"jtagspi_init 0 {{{bscanFile}}}; " +
             $"jtagspi_program {{{firmwareOcd}}} 0x0; " +

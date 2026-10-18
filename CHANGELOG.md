@@ -2,6 +2,17 @@
 
 ## v1.1.32 — 2026-10-18
 
+### Fixed
+- **Flash could skip the erase and go straight to writing.** On some runs the erase
+  ended the instant it started, and only a few restarts got a real one. The flash
+  programmer asks the chip whether it is still busy and treats the first "not busy"
+  answer as the end of the erase, so a single misread answer ends an erase that
+  never happened. That answer travels over the USB-JTAG link, which was running at
+  15 MHz on an adapter chip whose timing is known to be unreliable at high clock
+  rates. That is the most likely cause, so SPI flashing now runs the link at
+  3.75 MHz. Flashing takes a little longer. If an erase still ends too early, the
+  new flash record below shows it.
+
 ### Changed
 - **Every SPI flash now leaves a complete record.** Sylnar used to keep only its
   own short summary of a flash and throw away everything the programmer printed,
@@ -15,7 +26,8 @@
 - **A too-fast erase is flagged.** If the erase finishes faster than a real flash
   erase can, Sylnar warns that the flash may not have been erased before writing.
 
-Nothing about what is written to the board changed in this release.
+The firmware written and the steps used to write it are unchanged; only the speed
+of the link to the board is lower.
 
 ## v1.1.31 — 2026-10-18
 
