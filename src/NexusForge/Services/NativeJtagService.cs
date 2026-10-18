@@ -697,7 +697,8 @@ if ($dev) {{
         bool bulkFallback = false;     // "Bulk flash erase failed. Falling back..."
         int? statusReg1 = null, statusReg2 = null;
         bool chipWriteProtected = false;
-        string? eraseSuspicion = null;   // set by ReportEraseEvidence; non-null means the erase did not happen
+        string? eraseSuspicion = null;   // set by ReportEraseEvidence; non-null means the erase looks wrong
+        bool eraseDefinitelySkipped = false; // ...and the evidence is solid enough to abandon the write
         bool abortedForBadErase = false; // this attempt was stopped at the first page, before real damage
 
         // Last safe point to cancel: once the programmer starts erasing, killing
@@ -866,6 +867,17 @@ if ($dev) {{
                 suspicion = $"no erase was reported and writing began {gap} after detection";
 
             eraseSuspicion = suspicion;
+
+            // Only the first two cases are safe to STOP a flash on. Both rest on a
+            // line the chip actually produced, and a real erase on this hardware
+            // reports 157-223 ms per sector, so a sector under 10 ms cannot be one.
+            // The third case - nothing reported at all - is a guess from timing, and
+            // at the first page it is not even a reliable one: the erase lines come
+            // on stderr while the page lines come on stdout, and the two are drained
+            // by independent tasks, so a whole-chip erase's "took" line can still be
+            // in flight. Warning on it is fine; abandoning a flash for it is not.
+            eraseDefinitelySkipped = fastSectors > 0
+                                     || (sectorLines == 0 && bulkTookMs != null && bulkTookMs.Value < 2000);
 
             if (!final)
             {
@@ -1077,7 +1089,7 @@ if ($dev) {{
                     // and carrying on would spend three minutes making it worse and
                     // wearing the chip. One page may already be out; the retry erases
                     // the whole range again anyway.
-                    if (eraseSuspicion != null)
+                    if (eraseDefinitelySkipped)
                     {
                         abortedForBadErase = true;
                         transcript.Note("ABORT: erase did not happen; stopping before the write.");
