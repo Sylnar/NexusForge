@@ -276,6 +276,7 @@ public class NativeJtagService : IDisposable
         _logService.Info($"Flashing firmware: {fileName}");
         progress?.Report(new FlashProgress { Stage = "Initializing", Percentage = 5, Message = "Connecting to JTAG..." });
 
+        StopStrayOpenOcd();
         EnsureToolsExtracted();
 
         string ext = Path.GetExtension(firmwarePath).ToLowerInvariant();
@@ -632,6 +633,7 @@ if ($dev) {{
         long? probeAtMs = null;        // "Found flash device" read
         long? firstPageAtMs = null;    // first "0x%08x." page line read
         int sectorLines = 0;           // "sector N took M ms" lines
+        int fastSectors = 0;           // ...of which reported under 10 ms
         long sectorMsMin = long.MaxValue, sectorMsMax = 0, sectorMsSum = 0;
         long? bulkTookMs = null;       // bare "took N ms" from the whole-chip erase
         bool bulkFallback = false;     // "Bulk flash erase failed. Falling back..."
@@ -657,7 +659,10 @@ if ($dev) {{
             _logService.Error($"Failed to start JTAG engine: {ex.Message}");
             return new FlashResult { Success = false, ErrorMessage = "Engine start failed", Duration = sw.Elapsed };
         }
-        transcript.Note("OpenOCD started");
+        // Declared after `process`, so it is disposed first: the registration is
+        // cleared before the Process object goes away, on every return path.
+        using var activeRegistration = new ActiveOpenOcdRegistration(this, process);
+        transcript.Note($"OpenOCD started (process {process.Id})");
 
         using var cancelNotice = ct.Register(() => _logService.Warn(
             "Cancel ignored: the SPI flash is being erased/written. Interrupting now would leave the board unbootable, so the write will finish."));
@@ -737,9 +742,14 @@ if ($dev) {{
             // and one read over this bridge takes about a millisecond, so an erase
             // command the chip never acted on "completes" almost at once, with no
             // error. This only warns; it changes nothing that is sent to the board.
+            // Any single sector under the floor counts, not just the slowest: a
+            // partly skipped erase (some sectors ignored, some real) would otherwise
+            // hide behind one real 150 ms sector.
             string? suspicion = null;
-            if (sectorLines > 0 && sectorMsMax < 10)
-                suspicion = "every sector erase reported under 10 ms";
+            if (fastSectors > 0)
+                suspicion = fastSectors == sectorLines
+                    ? "every sector erase reported under 10 ms"
+                    : $"{fastSectors} of {sectorLines} sector erases reported under 10 ms";
             else if (sectorLines == 0 && bulkTookMs != null && bulkTookMs.Value < 2000)
                 suspicion = $"the whole-chip erase reported {bulkTookMs.Value} ms";
             else if (sectorLines == 0 && bulkTookMs == null && probeAtMs != null && firstPageAtMs != null
@@ -749,9 +759,13 @@ if ($dev) {{
             if (!final)
             {
                 _logService.Info(summary);
+                // The file is named inside the warning itself: the Warnings filter
+                // and its Copy show WARN lines only, which hides the INFO line that
+                // named it at the start of the flash.
                 if (suspicion != null)
                     _logService.Warn($"This erase finished faster than a real flash erase can ({suspicion}). " +
-                                     "The flash may not have been erased before writing. Please send the flash transcript named above.");
+                                     "The flash may not have been erased before writing. Please send the flash record " +
+                                     (transcript.DisplayPath ?? @"from %LOCALAPPDATA%\Sylnar\flash") + ".");
             }
             transcript.Note((final ? "FINAL " : "") + summary + (suspicion != null ? $" SUSPECT: {suspicion}." : ""));
         }
@@ -855,6 +869,7 @@ if ($dev) {{
                 if (long.TryParse(sectorMatch.Groups[2].Value, out long sectorMs))
                 {
                     sectorLines++;
+                    if (sectorMs < 10) fastSectors++;
                     sectorMsSum += sectorMs;
                     if (sectorMs < sectorMsMin) sectorMsMin = sectorMs;
                     if (sectorMs > sectorMsMax) sectorMsMax = sectorMs;
@@ -1216,8 +1231,105 @@ if ($dev) {{
         return new FlashResult { Success = false, ErrorMessage = errorMsg, Duration = duration };
     }
 
+    // ── The SPI flash programmer process ─────────────────────────────────────
+    // v1.1.32. Before this, closing the window during a flash never stopped
+    // OpenOCD: Cleanup only deleted the tools folder (which silently fails while
+    // openocd.exe is running out of it), and nothing else held the process. So a
+    // flash the user abandoned by closing Sylnar - exactly what they do when the
+    // erase is skipped - carried on erasing and writing in the background, and the
+    // next attempt from a new window then drove the same JTAG adapter at the same
+    // time. Two programmers interleaving commands on one BSCAN bridge corrupt each
+    // other's status reads, erase and write.
+
+    private Process? _activeOpenOcd;
+    private readonly object _activeOpenOcdLock = new();
+
+    private sealed class ActiveOpenOcdRegistration : IDisposable
+    {
+        private readonly NativeJtagService _owner;
+        private readonly Process _process;
+
+        public ActiveOpenOcdRegistration(NativeJtagService owner, Process process)
+        {
+            _owner = owner;
+            _process = process;
+            lock (owner._activeOpenOcdLock) owner._activeOpenOcd = process;
+        }
+
+        public void Dispose()
+        {
+            lock (_owner._activeOpenOcdLock)
+            {
+                if (ReferenceEquals(_owner._activeOpenOcd, _process))
+                    _owner._activeOpenOcd = null;
+            }
+        }
+    }
+
+    /// <summary>Stops this window's flash programmer if one is running.</summary>
+    private void StopActiveOpenOcd()
+    {
+        Process? p;
+        lock (_activeOpenOcdLock) p = _activeOpenOcd;
+        if (p == null) return;
+        try
+        {
+            if (p.HasExited) return;
+            _logService.Warn("Sylnar is closing during a flash, so the flash programmer is being stopped. " +
+                             "The board needs a complete flash before it will boot.");
+            p.Kill(true);
+            p.WaitForExit(5000);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Stops any openocd.exe still running out of another Sylnar tools folder
+    /// (%TEMP%\nf_*): a programmer an earlier window left behind. Run before this
+    /// window touches the adapter. Killing one mid-write is safe at that point,
+    /// because the flash about to start erases and rewrites everything anyway.
+    /// </summary>
+    private void StopStrayOpenOcd()
+    {
+        Process[] candidates;
+        try { candidates = Process.GetProcessesByName("openocd"); }
+        catch { return; }
+
+        string temp;
+        try { temp = Path.GetFullPath(Path.GetTempPath()); }
+        catch { return; }
+        string? ownDir = null;
+        try { if (_toolDir != null) ownDir = Path.GetFullPath(_toolDir).TrimEnd('\\', '/'); }
+        catch { }
+
+        foreach (var p in candidates)
+        {
+            using (p)
+            {
+                try
+                {
+                    string? exe = p.MainModule?.FileName;
+                    if (string.IsNullOrEmpty(exe)) continue;
+                    string dir = Path.GetDirectoryName(Path.GetFullPath(exe)) ?? "";
+                    if (!dir.StartsWith(temp, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!Path.GetFileName(dir).StartsWith("nf_", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (ownDir != null && string.Equals(dir.TrimEnd('\\', '/'), ownDir, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (p.HasExited) continue;
+
+                    _logService.Warn($"A flash programmer from an earlier Sylnar window was still running (process {p.Id}). " +
+                                     "It has been stopped so it cannot share the JTAG adapter with this one.");
+                    p.Kill(true);
+                    p.WaitForExit(5000);
+                }
+                catch { }
+            }
+        }
+    }
+
     public void Cleanup()
     {
+        StopActiveOpenOcd();
+
         if (_toolDir != null && Directory.Exists(_toolDir))
         {
             try { Directory.Delete(_toolDir, true); } catch { }

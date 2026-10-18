@@ -12,6 +12,11 @@
   rates. That is the most likely cause, so SPI flashing now runs the link at
   3.75 MHz. Flashing takes a little longer. If an erase still ends too early, the
   new flash record below shows it.
+- **Closing Sylnar during a flash left the programmer running.** It kept erasing and
+  writing in the background, and the next flash from a new window then shared the
+  USB-JTAG link with it, which spoils both. Closing during a flash now stops the
+  programmer, and a programmer left behind by an older version is stopped before a
+  new flash starts.
 
 ### Changed
 - **Every SPI flash now leaves a complete record.** Sylnar used to keep only its
@@ -26,8 +31,8 @@
 - **A too-fast erase is flagged.** If the erase finishes faster than a real flash
   erase can, Sylnar warns that the flash may not have been erased before writing.
 
-The firmware written and the steps used to write it are unchanged; only the speed
-of the link to the board is lower.
+The firmware written and the steps used to write it are unchanged; the link to the
+board runs slower, and a flash now stops when Sylnar is closed.
 
 ## v1.1.31 — 2026-10-18
 
