@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.1.32 — 2026-10-18
+
+### Changed
+- **Every SPI flash now leaves a complete record.** Sylnar used to keep only its
+  own short summary of a flash and throw away everything the programmer printed,
+  so when an erase went wrong there was nothing to look at afterwards. Each flash
+  now writes a timestamped record to `%LOCALAPPDATA%\Sylnar\flash\`, and the log
+  names the file at the start of the flash. The newest 20 are kept. The record is
+  written as it happens, so it survives closing the window part-way through.
+- **The log now says how the erase went:** whether the chip was erased sector by
+  sector or as a whole, how long it took, and how long after the flash chip was
+  detected the writing began.
+- **A too-fast erase is flagged.** If the erase finishes faster than a real flash
+  erase can, Sylnar warns that the flash may not have been erased before writing.
+
+Nothing about what is written to the board changed in this release.
+
 ## v1.1.31 — 2026-10-18
 
 ### Changed

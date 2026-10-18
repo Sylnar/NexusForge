@@ -600,25 +600,61 @@ if ($dev) {{
         long pagesWritten = 0;
         DateTime lastWriteUpdate = DateTime.MinValue;
 
+        // Erase evidence, gathered from OpenOCD's own lines (all level 2, so they
+        // always reach us). Times are on the flash stopwatch, in ms. See
+        // ReportEraseEvidence for what they are used for.
+        long? probeAtMs = null;        // "Found flash device" read
+        long? firstPageAtMs = null;    // first "0x%08x." page line read
+        int sectorLines = 0;           // "sector N took M ms" lines
+        long sectorMsMin = long.MaxValue, sectorMsMax = 0, sectorMsSum = 0;
+        long? bulkTookMs = null;       // bare "took N ms" from the whole-chip erase
+        bool bulkFallback = false;     // "Bulk flash erase failed. Falling back..."
+
         // Last safe point to cancel: once the programmer starts erasing, killing
         // it leaves the board with a half-written (unbootable) flash.
         ct.ThrowIfCancellationRequested();
+
+        using var transcript = new FlashTranscript();
+        transcript.Note($"Sylnar {VersionInfo.WithV}, SPI flash");
+        transcript.Note($"Firmware: {fileName}, {firmwareSize:N0} bytes ({firmwareSize / 1048576.0:F2} MB), " +
+                        $"~{totalSectorsEstimate} x 64 KB sectors, {totalPages:N0} pages");
+        transcript.Note($"FPGA IDCODE 0x{idcode:X8}, bridge {bscanFile}");
+        transcript.Note($"Command: {SanitizePath(commands)}");
+        if (transcript.DisplayPath != null)
+            _logService.Info($"Flash transcript: {transcript.DisplayPath}");
 
         using var process = new Process { StartInfo = psi };
         try { process.Start(); }
         catch (Exception ex)
         {
+            transcript.Note($"Failed to start OpenOCD: {ex.Message}");
             _logService.Error($"Failed to start JTAG engine: {ex.Message}");
             return new FlashResult { Success = false, ErrorMessage = "Engine start failed", Duration = sw.Elapsed };
         }
+        transcript.Note("OpenOCD started");
 
         using var cancelNotice = ct.Register(() => _logService.Warn(
             "Cancel ignored: the SPI flash is being erased/written. Interrupting now would leave the board unbootable, so the write will finish."));
 
         var lineLock = new object();
-        void ProcessLine(string line)
+        int pageLinesSeen = 0;
+        void ProcessLine(string line, string stream)
         {
-            lock (lineLock) ProcessLineCore(line);
+            lock (lineLock)
+            {
+                // Recorded under the same lock as the parse, so the transcript's
+                // order is exactly the order the parser saw the two pipes in.
+                // Every line is kept except the write's per-page progress, one
+                // "0x%08x." line per 256 bytes (tens of thousands per flash) that
+                // carries nothing but an address: the first 64 and every 512th
+                // after that are enough to place the write in time against the
+                // erase, and keep a transcript to kilobytes.
+                var tt = line.Trim();
+                bool page = tt.Length == 11 && tt.StartsWith("0x", StringComparison.Ordinal) && tt.EndsWith('.');
+                if (!page || pageLinesSeen++ < 64 || pageLinesSeen % 512 == 0)
+                    transcript.Line(stream, line);
+                ProcessLineCore(line);
+            }
         }
 
         // Both are idempotent: more than one marker can announce the same
@@ -645,6 +681,55 @@ if ($dev) {{
             progress?.Report(new FlashProgress { Stage = "Erased", Percentage = 45, Message = "Erase complete. Writing..." });
         }
 
+        // What the erase actually did, in OpenOCD's own numbers. Called at the first
+        // written page, with what is known by then, early enough to be read before
+        // anyone closes the window mid-write; and again when OpenOCD has exited, into
+        // the transcript only, with everything both pipes delivered (the whole-chip
+        // "took" line is on stderr and can be read just after the first page, which
+        // is on stdout).
+        void ReportEraseEvidence(bool final)
+        {
+            string gap = probeAtMs != null && firstPageAtMs != null
+                ? $"{(firstPageAtMs.Value - probeAtMs.Value) / 1000.0:F1}s"
+                : "an unknown time";
+
+            string what;
+            if (sectorLines > 0)
+                what = $"{sectorLines} sector erases, {sectorMsSum / 1000.0:F1}s in total, each {sectorMsMin}-{sectorMsMax} ms" +
+                       (bulkFallback ? ", after the chip refused the whole-chip erase" : "");
+            else if (bulkTookMs != null)
+                what = $"whole-chip erase, {bulkTookMs.Value / 1000.0:F1}s";
+            else
+                what = "no erase timing was reported";
+
+            string summary = $"Erase: {what}; writing began {gap} after the flash was detected.";
+
+            // These floors sit far below any real SPI NOR erase. A 64 KB block erase
+            // takes tens to hundreds of milliseconds on every part these boards use,
+            // and a whole-chip erase takes tens of seconds. jtagspi_wait declares an
+            // erase finished on the first status read that shows the chip not busy,
+            // and one read over this bridge takes about a millisecond, so an erase
+            // command the chip never acted on "completes" almost at once, with no
+            // error. This only warns; it changes nothing that is sent to the board.
+            string? suspicion = null;
+            if (sectorLines > 0 && sectorMsMax < 10)
+                suspicion = "every sector erase reported under 10 ms";
+            else if (sectorLines == 0 && bulkTookMs != null && bulkTookMs.Value < 2000)
+                suspicion = $"the whole-chip erase reported {bulkTookMs.Value} ms";
+            else if (sectorLines == 0 && bulkTookMs == null && probeAtMs != null && firstPageAtMs != null
+                     && firstPageAtMs.Value - probeAtMs.Value < 3000)
+                suspicion = $"no erase was reported and writing began {gap} after detection";
+
+            if (!final)
+            {
+                _logService.Info(summary);
+                if (suspicion != null)
+                    _logService.Warn($"This erase finished faster than a real flash erase can ({suspicion}). " +
+                                     "The flash may not have been erased before writing. Please send the flash transcript named above.");
+            }
+            transcript.Note((final ? "FINAL " : "") + summary + (suspicion != null ? $" SUSPECT: {suspicion}." : ""));
+        }
+
         void ProcessLineCore(string line)
         {
             allOutput.AppendLine(line);
@@ -660,6 +745,7 @@ if ($dev) {{
 
             if (t.Contains("Found flash device", StringComparison.OrdinalIgnoreCase))
             {
+                probeAtMs ??= sw.ElapsedMilliseconds;
                 var fm = Regex.Match(t, @"Found flash device '([^']+)'", RegexOptions.IgnoreCase);
                 string flashName = fm.Success ? fm.Groups[1].Value : "SPI flash";
                 _logService.Info($"SPI flash detected: {flashName}");
@@ -730,6 +816,7 @@ if ($dev) {{
             // saying out loud - it is also why some runs take much longer.
             if (t.Contains("Bulk flash erase failed", StringComparison.OrdinalIgnoreCase))
             {
+                bulkFallback = true;
                 EnterErasePhase();
                 _logService.Warn("Bulk erase refused by the chip; falling back to sector erase (slower).");
                 progress?.Report(new FlashProgress { Stage = "Erasing", Percentage = 20, Message = "Erasing sector by sector..." });
@@ -739,6 +826,13 @@ if ($dev) {{
             if (sectorMatch.Success)
             {
                 EnterErasePhase();
+                if (long.TryParse(sectorMatch.Groups[2].Value, out long sectorMs))
+                {
+                    sectorLines++;
+                    sectorMsSum += sectorMs;
+                    if (sectorMs < sectorMsMin) sectorMsMin = sectorMs;
+                    if (sectorMs > sectorMsMax) sectorMsMax = sectorMs;
+                }
                 int sectorNum = int.Parse(sectorMatch.Groups[1].Value);
                 // The driver logs the absolute sector number; count from the
                 // start of the erase range so a range that does not begin at 0
@@ -773,10 +867,21 @@ if ($dev) {{
             // middle of the erase and report the rest of it as writing. The
             // first page of the write is the only honest end, and it is handled
             // below for both paths.
+            //
+            // It IS evidence, though: it is the whole-chip erase's own measure of
+            // how long it took, so it is recorded (and only recorded) here.
+            var bulkTookMatch = Regex.Match(t, @"^(?:[A-Za-z]+\s*:\s*)?took\s+(\d+)\s*ms$", RegexOptions.IgnoreCase);
+            if (bulkTookMatch.Success && long.TryParse(bulkTookMatch.Groups[1].Value, out long tookMs))
+                bulkTookMs = tookMs;
 
             var pageMatch = Regex.Match(t, @"^0x([0-9a-fA-F]{8})\.$");
             if (pageMatch.Success)
             {
+                if (firstPageAtMs == null)
+                {
+                    firstPageAtMs = sw.ElapsedMilliseconds;
+                    ReportEraseEvidence(final: false);
+                }
                 // The first page of the write is the end of the erase. This
                 // replaces a check for a "done in" line, which no OpenOCD in this
                 // build ever prints - the erase was never reported as finished
@@ -848,7 +953,7 @@ if ($dev) {{
             while (!process.StandardError.EndOfStream)
             {
                 var line = process.StandardError.ReadLine();
-                if (line != null) ProcessLine(line);
+                if (line != null) ProcessLine(line, "ERR");
             }
         });
 
@@ -857,7 +962,7 @@ if ($dev) {{
             while (!process.StandardOutput.EndOfStream)
             {
                 var line = process.StandardOutput.ReadLine();
-                if (line != null) ProcessLine(line);
+                if (line != null) ProcessLine(line, "OUT");
             }
         });
 
@@ -878,6 +983,8 @@ if ($dev) {{
             try { process.Kill(true); } catch { }
             int effSec = effectiveTimeoutMs / 1000;
             long sizeKb = firmwareSize / 1024;
+            transcript.Note($"Timed out after {effSec}s; OpenOCD killed. {pagesWritten:N0} of {totalPages:N0} pages seen.");
+            ReportEraseEvidence(final: true);
             _logService.Error($"SPI flash programming timed out after {effSec}s (firmware {sizeKb} KB).");
             progress?.Report(new FlashProgress { Stage = "Failed", Percentage = 0, Message = $"Timed out after {effSec}s" });
             return new FlashResult { Success = false, ErrorMessage = $"Timed out after {effSec}s ({sizeKb} KB firmware)", Duration = sw.Elapsed };
@@ -887,6 +994,9 @@ if ($dev) {{
         sw.Stop();
 
         bool success = process.ExitCode == 0;
+        transcript.Note($"OpenOCD exited with code {process.ExitCode} after {sw.Elapsed.TotalSeconds:F1}s; " +
+                        $"{pagesWritten:N0} of {totalPages:N0} pages seen");
+        ReportEraseEvidence(final: true);
 
         // v1.1.25: tightened success gate. Previously any of (ExitCode==0, wrote
         // seen, "Close" substring) counted; that let partial-write failures pass
