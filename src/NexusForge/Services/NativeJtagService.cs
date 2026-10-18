@@ -276,7 +276,6 @@ public class NativeJtagService : IDisposable
         _logService.Info($"Flashing firmware: {fileName}");
         progress?.Report(new FlashProgress { Stage = "Initializing", Percentage = 5, Message = "Connecting to JTAG..." });
 
-        StopStrayOpenOcd();
         EnsureToolsExtracted();
 
         string ext = Path.GetExtension(firmwarePath).ToLowerInvariant();
@@ -300,6 +299,10 @@ public class NativeJtagService : IDisposable
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+
+        // Only now that the file has passed its checks and this flash is really
+        // going to touch the adapter.
+        StopStrayOpenOcd();
 
         string firmwareOcd = firmwarePath.Replace("\\", "/");
 
@@ -1233,13 +1236,17 @@ if ($dev) {{
 
     // ── The SPI flash programmer process ─────────────────────────────────────
     // v1.1.32. Before this, closing the window during a flash never stopped
-    // OpenOCD: Cleanup only deleted the tools folder (which silently fails while
-    // openocd.exe is running out of it), and nothing else held the process. So a
-    // flash the user abandoned by closing Sylnar - exactly what they do when the
-    // erase is skipped - carried on erasing and writing in the background, and the
-    // next attempt from a new window then drove the same JTAG adapter at the same
-    // time. Two programmers interleaving commands on one BSCAN bridge corrupt each
-    // other's status reads, erase and write.
+    // OpenOCD and never said so: Cleanup only deleted the tools folder (which
+    // silently fails while openocd.exe is running out of it), and nothing else
+    // held the process. So a flash the user abandoned by closing Sylnar - exactly
+    // what they do when the erase is skipped - carried on erasing and writing
+    // unseen, and the next attempt from a new window then drove the same JTAG
+    // adapter at the same time. Two programmers interleaving commands on one BSCAN
+    // bridge corrupt each other's status reads, erase and write.
+    //
+    // Now: MainWindow asks before closing during a flash (StopFlashWindow) and
+    // stops the programmer only if the user says so; and a programmer left behind
+    // by any earlier window is stopped before a new flash touches the adapter.
 
     private Process? _activeOpenOcd;
     private readonly object _activeOpenOcdLock = new();
@@ -1266,8 +1273,28 @@ if ($dev) {{
         }
     }
 
-    /// <summary>Stops this window's flash programmer if one is running.</summary>
-    private void StopActiveOpenOcd()
+    /// <summary>True while this window's SPI flash programmer is running.</summary>
+    public bool IsFlashProgrammerRunning
+    {
+        get
+        {
+            Process? p;
+            lock (_activeOpenOcdLock) p = _activeOpenOcd;
+            if (p == null) return false;
+            try { return !p.HasExited; }
+            catch { return false; }
+        }
+    }
+
+    /// <summary>
+    /// Stops this window's SPI flash programmer. Only ever on the user's explicit
+    /// choice: MainWindow asks first when the window is closed during a flash.
+    /// It is deliberately NOT called on other exits (ProcessExit, the auto-updater's
+    /// Environment.Exit): a healthy flash then still runs to completion on its own,
+    /// as it always has, and StopStrayOpenOcd keeps it from colliding with the next
+    /// flash if one is started before it ends.
+    /// </summary>
+    public void StopFlashProgrammer()
     {
         Process? p;
         lock (_activeOpenOcdLock) p = _activeOpenOcd;
@@ -1275,8 +1302,7 @@ if ($dev) {{
         try
         {
             if (p.HasExited) return;
-            _logService.Warn("Sylnar is closing during a flash, so the flash programmer is being stopped. " +
-                             "The board needs a complete flash before it will boot.");
+            _logService.Warn("Flash stopped at your request. The board needs a complete flash before it will boot.");
             p.Kill(true);
             p.WaitForExit(5000);
         }
@@ -1328,8 +1354,6 @@ if ($dev) {{
 
     public void Cleanup()
     {
-        StopActiveOpenOcd();
-
         if (_toolDir != null && Directory.Exists(_toolDir))
         {
             try { Directory.Delete(_toolDir, true); } catch { }

@@ -10,6 +10,7 @@ namespace Sylnar.Views;
 public partial class MainWindow : Window
 {
     private bool _cleanupDone;
+    private bool _closeInProgress;
 
     public MainWindow()
     {
@@ -39,6 +40,40 @@ public partial class MainWindow : Window
         }
 
         e.Cancel = true;
+
+        // A second close while the question below is open, or while shutdown is
+        // already under way, must not start another one.
+        if (_closeInProgress) return;
+        _closeInProgress = true;
+
+        // v1.1.32: closing during a SPI flash used to leave OpenOCD running unseen
+        // in the background, where it either finished the flash or collided with
+        // the next one. Ask instead, and stop it only on an explicit yes. Anything
+        // else - "Keep flashing", Escape, the dialog failing to show - keeps the
+        // flash running and Sylnar open.
+        try
+        {
+            var jtag = (Avalonia.Application.Current as App)?.Services?.GetService<NativeJtagService>();
+            if (jtag?.IsFlashProgrammerRunning == true)
+            {
+                bool stop = false;
+                try { stop = await new StopFlashWindow().ShowDialog<bool>(this); }
+                catch (Exception ex) { Helpers.CrashLogger.LogException("MainWindow.StopFlashPrompt", ex); }
+
+                if (!stop)
+                {
+                    _closeInProgress = false;
+                    return;
+                }
+                try { await Task.Run(() => jtag.StopFlashProgrammer()); } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            Helpers.CrashLogger.LogException("MainWindow.OnClosing.Prompt", ex);
+            _closeInProgress = false;
+            return;
+        }
 
         try
         {

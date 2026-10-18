@@ -1,0 +1,61 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Sylnar.Views.StopFlashWindow"
+        Title="Flash in progress"
+        Width="440" Height="214"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        SystemDecorations="None"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        ShowInTaskbar="False">
+
+  <!--
+    v1.1.32: asked when the main window is closed while the SPI flash programmer
+    is running. Before this, closing simply left OpenOCD running in the background,
+    where it finished the flash unseen - or collided with the next flash from a
+    new window. Stopping it now has to be the user's explicit choice: a stopped
+    erase or write leaves the board unable to boot until it is flashed again, which
+    is also why Cancel is refused at this stage.
+
+    Same surface as SplashWindow and ShutdownWindow. "Keep flashing" is the default
+    and the safe answer; Escape and closing the dialog any other way mean the same.
+  -->
+  <Border Background="{StaticResource BgAppBrush}"
+          BorderBrush="{StaticResource LineCardBrush}"
+          BorderThickness="1"
+          CornerRadius="10"
+          ClipToBounds="True">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="22,20,22,18">
+
+      <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
+        <Border Width="30" Height="30" CornerRadius="8"
+                Background="{StaticResource AccentBrush}">
+          <TextBlock Text="S" FontSize="16" FontWeight="Bold"
+                     Foreground="{StaticResource OnAccentBrush}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <TextBlock Text="A flash is still running"
+                   FontSize="15" FontWeight="SemiBold"
+                   VerticalAlignment="Center" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="1" Spacing="6" Margin="0,14,0,0">
+        <TextBlock Text="Sylnar is erasing or writing the board's flash right now."
+                   Foreground="{StaticResource TextSecondaryBrush}"
+                   FontSize="12.5" TextWrapping="Wrap" />
+        <TextBlock Text="If you stop it, the board will not boot until it is flashed again."
+                   Foreground="{StaticResource TextMutedBrush}"
+                   FontSize="12" TextWrapping="Wrap" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8"
+                  HorizontalAlignment="Right" Margin="0,16,0,0">
+        <Button Name="StopButton" Classes="danger-outline" Content="Stop the flash and close" />
+        <Button Name="KeepButton" Classes="primary" Content="Keep flashing" IsDefault="True" />
+      </StackPanel>
+
+    </Grid>
+  </Border>
+</Window>
