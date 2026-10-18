@@ -608,8 +608,8 @@ if ($dev) {{
         string commands =
             $"init; " +
             $"jtagspi_init 0 {{{bscanFile}}}; " +
-            $"catch {{echo {StatusReg1Marker}[jtagspi cmd 0 1 0x05]}}; " +
-            $"catch {{echo {StatusReg2Marker}[jtagspi cmd 0 1 0x35]}}; " +
+            $"catch {{echo {StatusReg1Marker}[join [jtagspi cmd 0 1 0x05] _]}}; " +
+            $"catch {{echo {StatusReg2Marker}[join [jtagspi cmd 0 1 0x35] _]}}; " +
             $"jtagspi_program {{{firmwareOcd}}} 0x0; " +
             $"xc7_program xc7.tap";
 
@@ -863,12 +863,25 @@ if ($dev) {{
             }
 
             // The two status-register reads echoed between the probe and the erase.
+            // "jtagspi cmd" answers with the bytes it sent, then "-> ", then the
+            // bytes it read, space separated ("05 -> 02 "). The command chain joins
+            // that with underscores so echo sees one word, so the value wanted here
+            // is the LAST hex token, not the first - the first is the opcode we sent.
             var srMatch = Regex.Match(t,
-                $@"(?:{StatusReg1Marker}|{StatusReg2Marker})\s*(?:0x)?([0-9a-fA-F]{{1,2}})",
+                $@"(?:{StatusReg1Marker}|{StatusReg2Marker})(\S+)",
                 RegexOptions.IgnoreCase);
-            if (srMatch.Success && int.TryParse(srMatch.Groups[1].Value,
-                    System.Globalization.NumberStyles.HexNumber,
-                    System.Globalization.CultureInfo.InvariantCulture, out int srValue))
+            int srValue = -1;
+            if (srMatch.Success)
+            {
+                foreach (var part in srMatch.Groups[1].Value.Split('_'))
+                {
+                    if (Regex.IsMatch(part, @"^[0-9a-fA-F]{1,2}$") &&
+                        int.TryParse(part, System.Globalization.NumberStyles.HexNumber,
+                                     System.Globalization.CultureInfo.InvariantCulture, out int parsed))
+                        srValue = parsed;
+                }
+            }
+            if (srValue >= 0)
             {
                 if (t.Contains(StatusReg1Marker, StringComparison.OrdinalIgnoreCase))
                     statusReg1 = srValue;
