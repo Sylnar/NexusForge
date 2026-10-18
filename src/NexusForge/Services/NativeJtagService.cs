@@ -8,12 +8,9 @@ namespace Sylnar.Services;
 
 public class NativeJtagService : IDisposable
 {
-    /// <summary>
-    /// JTAG clock for SPI flashing, in kHz. The CH347 driver rounds up to the
-    /// adapter's next fixed clock, so 3750 is exactly 3.75 MHz. See the comment
-    /// at the SPI command in FlashSpiWithProgress for why it is not 10000.
-    /// </summary>
-    private const int SpiFlashJtagKhz = 3750;
+    /// <summary>Markers the SPI status-register reads are echoed behind.</summary>
+    private const string StatusReg1Marker = "SylnarSR1=";
+    private const string StatusReg2Marker = "SylnarSR2=";
 
     private readonly LogService _logService;
     private readonly AppSettings _settings;
@@ -582,28 +579,37 @@ if ($dev) {{
         // the board. v1.1.13's verify_image even errored ("checksum_memory").
         // So we use exactly the long-proven write flow: write happens in
         // jtagspi_program; we report "written" honestly and never fake a verify.
-        // v1.1.32: run the SPI flash at 3.75 MHz instead of the 15 MHz ch347.cfg
-        // actually produces. ch347.cfg asks for "adapter speed 10000", but this
-        // build's ch347_speed (0x40a823) only knows the CH347's fixed clocks
-        // (1.875, 3.75, 7.5, 15, 30, 60 MHz) and rounds a request UP to the next
-        // one, so 10000 kHz becomes 15 MHz. The adapter is a CH347T (vid_pid
-        // 0x55dd in ch347.cfg), the part OpenOCD's own manual warns about: poor
-        // USB HS behaviour and JTAG timing in which some clock pulses are much
-        // shorter than the requested frequency.
+        // v1.1.33: read the flash chip's two status registers between the probe and
+        // the erase, and show what they say.
         //
-        // Every SPI command crosses that JTAG link through the BSCAN bridge, and
-        // jtagspi_wait (0x483fb6) declares an erase finished on the first status
-        // read whose busy bit is clear. One misread status byte therefore ends an
-        // erase that never ran, instantly and with no error - which matches the
-        // report of Flash "jumping straight to writing" until a retry happens to
-        // read cleanly. A four times longer clock period gives the read path four
-        // times the margin. It is set here, after the config files and before
-        // init, so the bridge load, the probe, the erase and the write all use it;
-        // the separate scan_chain detection keeps the config's speed.
+        // A v1.1.32 transcript from a failing run settled what is wrong, and it is
+        // not what v1.1.32 guessed. At 3.75 MHz (the log confirms "clock speed
+        // 3750 kHz") all 45 sector erases still reported 2-3 ms, which is far below
+        // any real 64 KB erase and far too consistent to be misread status bits. So
+        // the slower clock is gone again: it fixed nothing and only made writing
+        // slower.
+        //
+        // What the same transcript proves instead: jtagspi_write_enable (0x4840b0)
+        // sends 0x06, reads the status register and logs "Cannot enable write to
+        // flash. Status=0x%02x" at LOG_ERROR if the write-enable latch is not set.
+        // That line never appeared, so the chip is reachable, it accepted the
+        // command and it reported the latch set. The erase that follows then ends
+        // on the first status read with the busy bit clear. A chip that sets the
+        // latch, takes the erase command, never goes busy and never errors is
+        // describing block protection: it is refusing the erase and clearing the
+        // latch again.
+        //
+        // So ask it directly. 0x05 reads status register 1, which carries the block
+        // protect bits, and 0x35 reads status register 2, which carries the
+        // complement bit that inverts the protected range. Both are reads and
+        // change nothing. "jtagspi cmd" hands its answer back as the command's
+        // result rather than logging it, so echo is what makes it visible; catch
+        // keeps a failure here from stopping the flash.
         string commands =
-            $"adapter speed {SpiFlashJtagKhz}; " +
             $"init; " +
             $"jtagspi_init 0 {{{bscanFile}}}; " +
+            $"catch {{echo {StatusReg1Marker}[jtagspi cmd 0 1 0x05]}}; " +
+            $"catch {{echo {StatusReg2Marker}[jtagspi cmd 0 1 0x35]}}; " +
             $"jtagspi_program {{{firmwareOcd}}} 0x0; " +
             $"xc7_program xc7.tap";
 
@@ -640,6 +646,8 @@ if ($dev) {{
         long sectorMsMin = long.MaxValue, sectorMsMax = 0, sectorMsSum = 0;
         long? bulkTookMs = null;       // bare "took N ms" from the whole-chip erase
         bool bulkFallback = false;     // "Bulk flash erase failed. Falling back..."
+        int? statusReg1 = null, statusReg2 = null;
+        bool chipWriteProtected = false;
 
         // Last safe point to cancel: once the programmer starts erasing, killing
         // it leaves the board with a half-written (unbootable) flash.
@@ -715,6 +723,53 @@ if ($dev) {{
             progress?.Report(new FlashProgress { Stage = "Erased", Percentage = 45, Message = "Erase complete. Writing..." });
         }
 
+        // Says in plain words what the chip's status registers report, and sets
+        // chipWriteProtected so the erase summary can name the cause. Runs on
+        // whichever read arrives; the second call reports the complete picture.
+        //
+        // Bit layout is the one every Winbond/ISSI/Macronix 25-series part shares.
+        // Status register 1: 0 busy, 1 write-enable latch, 2-4 block protect,
+        // 5 top/bottom, 6 sector-or-block, 7 status-register protect. Status
+        // register 2: 1 quad enable, 6 complement - and complement is the trap,
+        // because with no block-protect bits set it protects the WHOLE chip rather
+        // than none of it.
+        bool protectionReported = false;
+        void ReportProtection()
+        {
+            if (statusReg1 == null) return;
+
+            int sr1 = statusReg1.Value;
+            int bp = (sr1 >> 2) & 0x07;
+            bool complement = statusReg2 != null && (statusReg2.Value & 0x40) != 0;
+            chipWriteProtected = bp != 0 || complement;
+
+            // Wait for the second read before the final word, unless it never comes.
+            if (protectionReported) return;
+            if (statusReg2 == null && !chipWriteProtected) return;
+            protectionReported = true;
+
+            string regs = statusReg2 != null
+                ? $"status registers 0x{sr1:X2} and 0x{statusReg2.Value:X2}"
+                : $"status register 0x{sr1:X2}";
+
+            if (chipWriteProtected)
+            {
+                string which = complement && bp == 0
+                    ? "the whole chip is protected by its complement bit"
+                    : complement
+                        ? $"block-protect bits are set (level {bp}) with the complement bit on"
+                        : $"block-protect bits are set (level {bp})";
+                _logService.Warn($"The flash chip is refusing writes: {which}, from {regs}. " +
+                                 "An erase on a protected chip does nothing and reports no error, " +
+                                 "which is why flashing appears to skip it.");
+            }
+            else
+            {
+                _logService.Info($"Flash chip write protection: none ({regs}).");
+            }
+            transcript.Note($"Protection: {(chipWriteProtected ? "YES" : "no")}, {regs}");
+        }
+
         // What the erase actually did, in OpenOCD's own numbers. Called at the first
         // written page, with what is known by then, early enough to be read before
         // anyone closes the window mid-write; and again when OpenOCD has exited, into
@@ -766,9 +821,16 @@ if ($dev) {{
                 // and its Copy show WARN lines only, which hides the INFO line that
                 // named it at the start of the flash.
                 if (suspicion != null)
+                {
                     _logService.Warn($"This erase finished faster than a real flash erase can ({suspicion}). " +
-                                     "The flash may not have been erased before writing. Please send the flash record " +
-                                     (transcript.DisplayPath ?? @"from %LOCALAPPDATA%\Sylnar\flash") + ".");
+                                     "The flash was almost certainly NOT erased, so what is being written now " +
+                                     "will be wrong and the board will not boot from it.");
+                    _logService.Warn(chipWriteProtected
+                        ? "The cause is the write protection reported above. The protection bits have to be " +
+                          "cleared before this board can be flashed."
+                        : "The chip did not report write protection, so the cause is still open. Please send " +
+                          "the flash record " + (transcript.DisplayPath ?? @"from %LOCALAPPDATA%\Sylnar\flash") + ".");
+                }
             }
             transcript.Note((final ? "FINAL " : "") + summary + (suspicion != null ? $" SUSPECT: {suspicion}." : ""));
         }
@@ -798,6 +860,25 @@ if ($dev) {{
                 // erase begins as far as anything observable goes. See the block
                 // below for why there is nothing better to key on.
                 EnterErasePhase();
+            }
+
+            // The two status-register reads echoed between the probe and the erase.
+            var srMatch = Regex.Match(t,
+                $@"(?:{StatusReg1Marker}|{StatusReg2Marker})\s*(?:0x)?([0-9a-fA-F]{{1,2}})",
+                RegexOptions.IgnoreCase);
+            if (srMatch.Success && int.TryParse(srMatch.Groups[1].Value,
+                    System.Globalization.NumberStyles.HexNumber,
+                    System.Globalization.CultureInfo.InvariantCulture, out int srValue))
+            {
+                if (t.Contains(StatusReg1Marker, StringComparison.OrdinalIgnoreCase))
+                    statusReg1 = srValue;
+                else
+                    statusReg2 = srValue;
+
+                // Both arrive before the erase; report once the pair is in, or on
+                // whichever one arrives if the other never does.
+                ReportProtection();
+                return;
             }
 
             // ── erase ────────────────────────────────────────────────────────

@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.1.33 — 2026-10-18
+
+### Fixed
+- **Sylnar now says when the flash chip is refusing to be written.** A flash record
+  from a failing board showed what is really happening: the chip accepts the
+  command that unlocks writing, then silently ignores every erase and reports no
+  error, so writing starts over data that was never cleared. That is what a
+  write-protected chip does. Before each erase Sylnar now reads the chip's two
+  status registers and says plainly whether protection is on and how much of the
+  chip it covers. Nothing is written to the chip to find this out.
+- The warning about a too-fast erase now says outright that the board will not boot
+  from what is being written, and names the protection as the cause when the chip
+  reports it.
+
+### Changed
+- **Reverted the slower flashing link from v1.1.32.** It was meant to fix the
+  skipped erase and the same flash record proved it did not: at the lower speed
+  every erase still finished in two or three milliseconds. It only made flashing
+  slower, so the link is back to its previous speed.
+
 ## v1.1.32 — 2026-10-18
 
 ### Fixed
