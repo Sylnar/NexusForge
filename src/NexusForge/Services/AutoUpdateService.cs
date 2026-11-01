@@ -219,7 +219,9 @@ public class AutoUpdateService
                 CrashLogger.WriteLine("AutoUpdate: release asset has no digest; SHA-256 check skipped.");
             }
 
-            var exe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName;
+            var exe = Environment.GetEnvironmentVariable("SYLNAR_OUTER_EXE");
+            if (string.IsNullOrWhiteSpace(exe))
+                exe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName;
             if (exe == null)
             {
                 _logService.Warn("Could not determine current exe path.");

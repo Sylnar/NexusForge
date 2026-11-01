@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.36 — 2026-11-02
+
+### Fixed
+- **Repeated launches no longer depend on a reused .NET native-extraction
+  cache.** A native launcher gives every run an isolated extraction directory
+  and removes it after the app exits. Pre-managed startup failures are recorded
+  in `%LOCALAPPDATA%\Sylnar\bootstrap.log`.
+- Auto-update replaces the desktop launcher rather than its temporary child.
+
 ## v1.1.35 — 2026-11-02
 
 ### Fixed

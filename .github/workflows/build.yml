@@ -33,7 +33,16 @@ jobs:
         run: >
           dotnet publish src/NexusForge/NexusForge.csproj
           -c Release -r win-x64
-          -o dist
+          -o dist-inner
+
+      - name: Package isolated-startup launcher
+        shell: pwsh
+        run: >
+          ./tools/Bootstrap/build.ps1
+          -InputExe dist-inner/Sylnar.exe
+          -OutputExe dist/Sylnar.exe
+          -ProjectFile src/NexusForge/NexusForge.csproj
+          -IconFile src/NexusForge/sylnar.ico
 
       - name: Read exe version
         id: ver
