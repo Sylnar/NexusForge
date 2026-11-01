@@ -9,9 +9,8 @@ namespace Sylnar.Helpers;
 /// Global unhandled-exception logger. Writes to %LOCALAPPDATA%\Sylnar\crash.log
 /// so silent process deaths on Windows (especially Win11 25H2) leave a forensic trail
 /// instead of a flash-and-bye. Also tracks normal start/exit so we can detect when a
-/// previous run crashed (used by Program.cs to wipe the .NET single-file extraction
-/// cache, which is the root cause of "opens once, then dies on every relaunch" on
-/// Win11 25H2).
+/// previous run ended without a clean shutdown. The .NET single-file extraction
+/// cache remains untouched because native libraries may still be needed by this run.
 /// </summary>
 internal static class CrashLogger
 {
@@ -71,7 +70,7 @@ internal static class CrashLogger
                   $"v{Assembly.GetExecutingAssembly().GetName().Version}, " +
                   $"OS {Environment.OSVersion}, .NET {Environment.Version}) ===");
         if (PreviousRunCrashed)
-            WriteLine("*** Previous run did not exit cleanly — single-file extract cache will be reset.");
+            WriteLine("*** Previous run did not exit cleanly; single-file extract cache preserved.");
     }
 
     public static void MarkCleanExit()

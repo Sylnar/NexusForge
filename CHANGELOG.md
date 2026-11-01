@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.35 — 2026-11-02
+
+### Fixed
+- **Sylnar could close while starting after an unclean shutdown.** The app no
+  longer removes extracted native libraries while they may still be needed by
+  the current run.
+
 ## v1.1.34 — 2026-10-18
 
 ### Fixed
