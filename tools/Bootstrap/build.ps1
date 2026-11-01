@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory = $true)][string]$InputExe,
     [Parameter(Mandatory = $true)][string]$OutputExe,
     [Parameter(Mandatory = $true)][string]$ProjectFile,
-    [Parameter(Mandatory = $true)][string]$IconFile
+    [Parameter(Mandatory = $true)][string]$IconFile,
+    [Parameter(Mandatory = $true)][string]$ManifestFile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,6 +11,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $inputItem = Get-Item -LiteralPath $InputExe
 $projectItem = Get-Item -LiteralPath $ProjectFile
 $iconItem = Get-Item -LiteralPath $IconFile
+$manifestItem = Get-Item -LiteralPath $ManifestFile
 $outputPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputExe)
 New-Item -ItemType Directory -Path (Split-Path -Parent $outputPath) -Force | Out-Null
 [xml]$project = Get-Content -LiteralPath $projectItem.FullName -Raw
@@ -31,10 +33,12 @@ $resourceObject = Join-Path $objectDirectory 'SylnarBootstrap.res'
 $sourceFile = Join-Path $PSScriptRoot 'SylnarBootstrap.cpp'
 $inputRc = $inputItem.FullName.Replace('\', '/')
 $iconRc = $iconItem.FullName.Replace('\', '/')
+$manifestRc = $manifestItem.FullName.Replace('\', '/')
 $resource = @"
 #include <winver.h>
 101 RCDATA "$inputRc"
 1 ICON "$iconRc"
+1 24 "$manifestRc"
 1 VERSIONINFO
 FILEVERSION $versionCsv
 PRODUCTVERSION $versionCsv
@@ -67,5 +71,12 @@ Set-Content -LiteralPath $resourceFile -Value $resource -Encoding Ascii
 & rc.exe /nologo /fo $resourceObject $resourceFile
 if ($LASTEXITCODE) { throw "Resource compilation failed with exit code $LASTEXITCODE" }
 & cl.exe /nologo /std:c++17 /EHsc /O2 /MT /W4 /WX /DUNICODE /D_UNICODE `
-    $sourceFile $resourceObject /Fe:$outputPath /link /SUBSYSTEM:WINDOWS ole32.lib shell32.lib user32.lib
+    $sourceFile $resourceObject /Fe:$outputPath /link /SUBSYSTEM:WINDOWS /MANIFEST:NO `
+    ole32.lib shell32.lib user32.lib
 if ($LASTEXITCODE) { throw "Bootstrap compilation failed with exit code $LASTEXITCODE" }
+$embeddedManifest = Join-Path $objectDirectory 'embedded.manifest'
+& mt.exe "-inputresource:$outputPath;#1" "-out:$embeddedManifest"
+if ($LASTEXITCODE) { throw "Could not verify the embedded application manifest" }
+if (-not (Select-String -LiteralPath $embeddedManifest -Pattern 'level="requireAdministrator"' -Quiet)) {
+    throw 'The launcher does not request administrator rights'
+}

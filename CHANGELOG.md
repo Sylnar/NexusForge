@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.1.37 — 2026-11-02
+
+### Fixed
+- **The startup launcher now requests administrator rights itself.** Windows
+  can therefore elevate the outer launcher before it starts the management
+  tool, instead of failing with error 740 on the first launch.
+- **Startup no longer crashes in `UIAutomationCore.dll` on affected Windows 11
+  systems.** Sylnar windows suppress the `WM_GETOBJECT` request that triggers
+  an Avalonia 11.2.3 Control Flow Guard failure.
+
 ## v1.1.36 — 2026-11-02
 
 ### Fixed

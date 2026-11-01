@@ -43,6 +43,7 @@ jobs:
           -OutputExe dist/Sylnar.exe
           -ProjectFile src/NexusForge/NexusForge.csproj
           -IconFile src/NexusForge/sylnar.ico
+          -ManifestFile src/NexusForge/app.manifest
 
       - name: Read exe version
         id: ver

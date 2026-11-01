@@ -1,5 +1,7 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Win32;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -72,9 +74,11 @@ public class App : Application
         {
             var mainViewModel = _services.GetRequiredService<MainViewModel>();
             var mainWindow = new MainWindow(mainViewModel);
+            DisableUiAutomation(mainWindow);
 
             // Show splash, then reveal main window when splash finishes.
             var splash = new SplashWindow();
+            DisableUiAutomation(splash);
             desktop.MainWindow = splash;
 
             splash.Closed += (_, _) =>
@@ -108,6 +112,7 @@ public class App : Application
                                     if (_updateWindow == null)
                                     {
                                         _updateWindow = new UpdateWindow();
+                                        DisableUiAutomation(_updateWindow);
                                         _updateWindow.Show();
                                         // Own MainWindow so closing the splash can't shut us down.
                                         desktop.MainWindow = _updateWindow;
@@ -191,6 +196,18 @@ public class App : Application
             }
         }
         catch { }
+    }
+
+    private static void DisableUiAutomation(Window window)
+    {
+        Win32Properties.AddWndProcHookCallback(window, WndProcHook);
+    }
+
+    private static nint WndProcHook(nint hWnd, uint msg, nint wParam, nint lParam, ref bool handled)
+    {
+        if (msg == 0x003D)
+            handled = true;
+        return nint.Zero;
     }
 
     private static IServiceProvider ConfigureServices()
