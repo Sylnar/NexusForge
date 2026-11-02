@@ -195,7 +195,7 @@ public sealed class BarProbeService
         // session so we don't share leechcore handles with a running speed test.
         _dmaTest.EnsureLibraries();
 
-        var argList = new List<string> { "-device", "fpga", "-norefresh", "-waitinitialize" };
+        var argList = new List<string> { "-device", "fpga", "-norefresh", "-waitinitialize", "-disable-symbolserver" };
         if (DmaTestService.HasCachedMmap())
         {
             argList.Add("-memmap");

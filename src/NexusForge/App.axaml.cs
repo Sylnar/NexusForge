@@ -88,6 +88,7 @@ public class App : Application
                 if (_updating) return;
                 desktop.MainWindow = mainWindow;
                 mainWindow.Show();
+                _ = ShowWhatsNewAfterUpdate(mainWindow);
             };
 
             // Auto-update runs in the background after a short settle period. A visible
@@ -168,6 +169,24 @@ public class App : Application
             // under another Sylnar instance that is still running.
             try { _services?.GetService<NativeJtagService>()?.Dispose(); } catch { }
         };
+    }
+
+    private async Task ShowWhatsNewAfterUpdate(MainWindow mainWindow)
+    {
+        try
+        {
+            if (_updating) return;
+            var notes = WhatsNewService.ConsumeUpdatedNotes();
+            if (notes == null) return;
+
+            var window = new WhatsNewWindow(notes);
+            DisableUiAutomation(window);
+            await window.ShowDialog(mainWindow);
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.LogException("App.ShowWhatsNewAfterUpdate", ex);
+        }
     }
 
     // Only folders NativeJtagService creates: "nf_" + a 32-hex-digit GUID. A bare

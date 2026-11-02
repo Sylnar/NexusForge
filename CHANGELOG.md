@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.39 — 2026-11-02
+
+### Added
+- A short **What’s new** popup now appears once after upgrading to a new version. It is not shown on every launch or on a fresh install.
+
+### Changed
+- Increased the confirmed-readable DMA sample pool target from 50,000 to 200,000 pages.
+- Memory-map scanning now probes one 4 KB page per 256 KB block instead of per 2 MB block, producing finer region boundaries and excluding smaller unreadable ranges.
+
+### Fixed
+- Removed the whole-block read optimization and restored v1.1.37-style block probing.
+- Removed the Microsoft Internet Symbol Store terms-of-use popup. DMA initialization now disables MemProcFS connections to the Microsoft Symbol Server on every code path; locally cached symbols can still be used.
+
 ## v1.1.38 — 2026-11-02
 
 ### Fixed

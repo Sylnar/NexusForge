@@ -227,23 +227,6 @@ public class DmaTestService
         if (_extracted && _dmaDir != null && Directory.Exists(_dmaDir))
             return;
 
-        // Suppress the Microsoft Internet Symbol Store EULA dialog that symsrv.dll
-        // (bundled with MemProcFS 5.17.7) shows on first symbol-server use. Two
-        // belt-and-suspenders mechanisms - either alone is enough on most PCs,
-        // both together is defensive against future symsrv changes:
-        //
-        //   1. _NT_SYMBOL_PATH=""  Tells symsrv "no symbol path at all" - no
-        //      downloads attempted, no EULA prompt path reached. VMMDLL still
-        //      initialises (LeechCore reads don't need kernel symbols); only
-        //      PidGetFromName-style introspection is degraded, which we only
-        //      use in Full Test and can fall back gracefully.
-        //
-        //   2. HKCU\Software\Microsoft\Symbol Server\EULA = 1  The documented
-        //      symsrv registry flag that records "user accepted EULA". Set
-        //      proactively in case some future symsrv variant ignores the
-        //      env var.
-        SuppressSymbolStoreEula();
-
         _dmaDir = OwnedTempDirs.Register(Path.Combine(Path.GetTempPath(), $"nf_{Guid.NewGuid():N}"));
         Directory.CreateDirectory(_dmaDir);
 
@@ -304,41 +287,6 @@ public class DmaTestService
         }
 
         return IntPtr.Zero;
-    }
-
-    /// <summary>
-    /// Suppress the Microsoft Internet Symbol Store EULA prompt that symsrv.dll
-    /// pops up when VMMDLL_Initialize tries to fetch kernel PDBs. Runs before
-    /// any DLL load so the env var is in place when symsrv first reads it.
-    /// </summary>
-    private void SuppressSymbolStoreEula()
-    {
-        // (1) Primary: empty _NT_SYMBOL_PATH - symsrv has no server to query,
-        // so the EULA-prompt code path is never reached. Process scope is
-        // enough; child processes (none here) and other dbghelp consumers in
-        // the process inherit it.
-        try
-        {
-            Environment.SetEnvironmentVariable("_NT_SYMBOL_PATH", "", EnvironmentVariableTarget.Process);
-            Environment.SetEnvironmentVariable("_NT_ALT_SYMBOL_PATH", "", EnvironmentVariableTarget.Process);
-        }
-        catch { /* env var write essentially can't fail */ }
-
-        // (2) Backup: HKCU\Software\Microsoft\Symbol Server\EULA = 1 (DWORD),
-        // the documented value the dialog's "Yes" button writes. Idempotent.
-        // HKCU = no admin required.
-        try
-        {
-            using var key = Microsoft.Win32.Registry.CurrentUser
-                .CreateSubKey(@"Software\Microsoft\Symbol Server");
-            if (key != null)
-            {
-                var existing = key.GetValue("EULA");
-                if (!(existing is int v && v == 1))
-                    key.SetValue("EULA", 1, Microsoft.Win32.RegistryValueKind.DWord);
-            }
-        }
-        catch { /* best effort */ }
     }
 
     public void Cleanup()
@@ -774,7 +722,7 @@ public class DmaTestService
         _poolVmm = IntPtr.Zero;
 
         _log.Info("Connecting to FPGA DMA device...");
-        var argList = new List<string> { "-device", "fpga", "-norefresh", "-waitinitialize" };
+        var argList = new List<string> { "-device", "fpga", "-norefresh", "-waitinitialize", "-disable-symbolserver" };
         if (useCachedMmap && HasCachedMmap())
         {
             argList.Add("-memmap");
@@ -811,7 +759,7 @@ public class DmaTestService
     //   RunQualifyBytes   - a page "qualifies for throughput" if its coalesced run
     //                       has at least this many bytes remaining from the page.
     //   RunQualifyTarget  - how many such pages must exist before we may stop.
-    private const int   PoolTarget       = 50_000;
+    private const int   PoolTarget       = 200_000;
     private const ulong RunQualifyBytes  = 0x1000000;   // 16 MB
     private const int   RunQualifyTarget = 1200;
     private const ulong PageSize         = 0x1000;       // 4 KB
@@ -1234,42 +1182,49 @@ public class DmaTestService
             VmmNative.VMMDLL_MemFree(pMap);
             pMap = IntPtr.Zero;
 
-            // A readable first page does not make the rest of a 2MB block accessible.
-            // Probe every 4KB page and coalesce only the pages verified individually.
-            long totalPages = e820.Sum(r => (long)((r.End - r.Start + PageSize) / PageSize));
+            // Probe at 256KB granularity so unreadable subranges are not hidden
+            // inside an otherwise accessible 256KB block.
+            const ulong BLOCK = 0x40000UL; // 256KB
+            long totalBlocks = e820.Sum(r => (long)((r.End - r.Start + BLOCK) / BLOCK));
             long probed = 0;
 
             var verified = new List<(ulong Start, ulong End)>();
-            var probeBuf = Marshal.AllocHGlobal((int)PageSize);
+            var probeBuf = Marshal.AllocHGlobal(0x1000);
             try
             {
                 foreach (var (regionStart, regionEnd) in e820)
                 {
                     if (ct.IsCancellationRequested) break;
 
-                    ulong page = (regionStart + PageSize - 1) & ~(PageSize - 1);
+                    // Align block iteration to 256KB boundary
+                    ulong blockBase = regionStart & ~(BLOCK - 1);
                     ulong? runStart = null;
 
-                    for (; page + PageSize - 1 <= regionEnd; page += PageSize)
+                    for (; blockBase <= regionEnd; blockBase += BLOCK)
                     {
                         if (ct.IsCancellationRequested) break;
 
-                        bool ok = VmmNative.LcRead(hLC, page, (uint)PageSize, probeBuf);
+                        // Probe the first accessible page in this 256KB block
+                        ulong probeAddr = Math.Max(blockBase, regionStart);
+                        bool ok = VmmNative.LcRead(hLC, probeAddr, 0x1000, probeBuf);
                         probed++;
 
-                        int pct = 15 + (int)(75.0 * probed / Math.Max(totalPages, 1));
-                        if (probed % 4096 == 0)
+                        int pct = 15 + (int)(75.0 * probed / Math.Max(totalBlocks, 1));
+                        if (probed % 64 == 0)
                             progress?.Report(Prog("Probing", pct,
-                                $"Probing physical memory... {probed}/{totalPages} pages, {verified.Count} regions found"));
+                                $"Probing physical memory... {probed}/{totalBlocks} blocks, {verified.Count} regions found"));
 
                         if (ok)
                         {
-                            if (runStart == null) runStart = page;
+                            if (runStart == null) runStart = probeAddr;
                         }
-                        else if (runStart != null)
+                        else
                         {
-                            verified.Add((runStart.Value, page - 1));
-                            runStart = null;
+                            if (runStart != null)
+                            {
+                                verified.Add((runStart.Value, Math.Min(blockBase - 1, regionEnd)));
+                                runStart = null;
+                            }
                         }
                     }
 
@@ -1279,8 +1234,6 @@ public class DmaTestService
             }
             finally { Marshal.FreeHGlobal(probeBuf); }
 
-            ct.ThrowIfCancellationRequested();
-
             if (verified.Count == 0)
                 throw new InvalidOperationException("No accessible physical memory found after probing.");
 
@@ -1288,7 +1241,7 @@ public class DmaTestService
             var lines = new List<string>
             {
                 "# Physical memory map generated by Sylnar (probe-verified).",
-                "# VBS/HVCI-protected pages have been excluded by 4KB-page probing.",
+                "# VBS/HVCI-protected pages have been excluded by 256KB-block probing.",
                 "# Save as mmap.txt in your radar/DMA tool folder.",
                 "# Re-generate if you change RAM, BIOS, or move to a different PC.",
                 ""
@@ -1313,7 +1266,7 @@ public class DmaTestService
 
             progress?.Report(Prog("Ready", 100,
                 $"Ready - {result.RegionCount} regions, {result.TotalRamGb:F1} GB (VBS-excluded). Choose where to save."));
-            _log.Info($"mmap generation complete: {probed} pages probed, {result.RegionCount} verified regions.");
+            _log.Info($"mmap generation complete: {probed} blocks probed, {result.RegionCount} verified regions.");
         }
         catch (Exception ex)
         {

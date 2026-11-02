@@ -12,15 +12,15 @@
     <AssemblyName>Sylnar</AssemblyName>
     <ApplicationIcon>sylnar.ico</ApplicationIcon>
     <RootNamespace>Sylnar</RootNamespace>
-    <Version>1.1.38</Version>
+    <Version>1.1.39</Version>
     <Product>Sylnar</Product>
     <Company>Sylnar</Company>
     <Authors>Sylnar</Authors>
     <Copyright>Copyright (C) 2026 Sylnar. All rights reserved.</Copyright>
     <Description>FPGA DMA board management tool.</Description>
-    <FileVersion>1.1.38.0</FileVersion>
-    <AssemblyVersion>1.1.38.0</AssemblyVersion>
-    <InformationalVersion>1.1.38</InformationalVersion>
+    <FileVersion>1.1.39.0</FileVersion>
+    <AssemblyVersion>1.1.39.0</AssemblyVersion>
+    <InformationalVersion>1.1.39</InformationalVersion>
     <NeutralLanguage>en</NeutralLanguage>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
