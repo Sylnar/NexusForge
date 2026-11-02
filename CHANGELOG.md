@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.38 — 2026-11-02
+
+### Fixed
+- Memory-map generation now verifies every 4 KB page before including it in the DMA map. A readable first page no longer marks an entire 2 MB block as accessible, preventing intermittent read failures with VBS and IOMMU enabled.
+- Cancelling memory-map generation no longer publishes a partial map as a completed, verified map.
+
 ## v1.1.37 — 2026-11-02
 
 ### Fixed
