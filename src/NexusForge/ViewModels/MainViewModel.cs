@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.Input;
 using System.Windows.Input;
 using Sylnar.Helpers;
@@ -16,6 +17,7 @@ public class MainViewModel : BaseViewModel
     private const int FilterAll = 0, FilterWarnings = 1, FilterErrors = 2;
 
     private const int MaxLogEntries = 1000;
+    private const string CommunityUrl = "https://discord.gg/KhCD5way6N";
 
     private readonly LogService _logService;
     private readonly AppSettings _settings;
@@ -112,6 +114,7 @@ public class MainViewModel : BaseViewModel
     public ICommand ClearLogCommand { get; }
     public ICommand CopyLogCommand { get; }
     public ICommand ToggleLogCommand { get; }
+    public ICommand OpenCommunityCommand { get; }
 
     public MainViewModel(
         LogService logService,
@@ -133,6 +136,7 @@ public class MainViewModel : BaseViewModel
         ClearLogCommand = new RelayCommand(ClearLog);
         CopyLogCommand = new AsyncRelayCommand(CopyLogAsync);
         ToggleLogCommand = new RelayCommand(() => IsLogExpanded = !IsLogExpanded);
+        OpenCommunityCommand = new RelayCommand(OpenCommunity);
 
         _logService.LogAdded += OnLogAdded;
         _logService.Info($"Sylnar v{_settings.Version} started");
@@ -220,6 +224,22 @@ public class MainViewModel : BaseViewModel
         OnPropertyChanged(nameof(LogCount));
         OnPropertyChanged(nameof(WarningsFilterLabel));
         OnPropertyChanged(nameof(ErrorsFilterLabel));
+    }
+
+    private void OpenCommunity()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = CommunityUrl,
+                UseShellExecute = true
+            })?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            _logService.Error($"Failed to open Discord community: {ex.Message}");
+        }
     }
 
     /// <summary>Copies what the dock currently shows (respects the filter).</summary>

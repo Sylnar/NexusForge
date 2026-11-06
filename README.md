@@ -5,6 +5,12 @@
   <img src="https://img.shields.io/badge/License-Proprietary-FF5252?style=for-the-badge&labelColor=0D1117" />
 </p>
 
+<p align="center">
+  <a href="https://sylnar.com/sylnar-tool">Website &amp; Documentation</a>
+  ·
+  <a href="https://discord.gg/KhCD5way6N">Discord Community &amp; Support</a>
+</p>
+
 <h1 align="center">Sylnar</h1>
 
 <p align="center">

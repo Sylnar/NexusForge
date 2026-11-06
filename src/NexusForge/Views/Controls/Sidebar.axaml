@@ -39,6 +39,12 @@
                    ctrl:ToneClass.Tone="{Binding PrivilegeTone}" Margin="8,0,0,0" />
       </Grid>
 
+      <Button DockPanel.Dock="Bottom" Classes="secondary sm" Margin="6,0,6,12"
+              Command="{Binding OpenCommunityCommand}"
+              AutomationProperties.Name="Open Sylnar Discord community and support">
+        Community &amp; Support
+      </Button>
+
       <!-- ── Hardware: live driver status of both USB links ── -->
       <Border DockPanel.Dock="Bottom" Margin="0,0,0,18" Padding="10" CornerRadius="8"
               Background="{StaticResource BgSubtleBrush}"
